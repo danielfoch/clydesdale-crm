@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Clydesdale CRM
 
-## Getting Started
+Lean realtor revenue machine built with Next.js App Router, TypeScript, Tailwind, Prisma, and Postgres.
 
-First, run the development server:
+The product is organized around one rule: every lead, client, deal, and past client needs one clear next action.
+
+## Main Screens
+
+- `Today`: new leads, due follow-ups, AI drafts to approve, deals at risk, past clients due.
+- `People`: searchable relationship list and fast lead add.
+- `Deals`: buyer, tenant, seller, and landlord pipeline with next action and risk.
+- `Campaigns`: recipes, sentence workflows, RSS/Substack content repurposing, newsletter drafts.
+- `Settings`: team, sources, Gmail/Twilio placeholders, AI, webhooks, compliance.
+
+## Local Setup
 
 ```bash
+npm install
+docker compose up -d postgres
+npm run db:migrate
+npm run db:seed
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+If you already have Postgres, set `DATABASE_URL` in `.env` and skip Docker.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Verification
 
-## Learn More
+```bash
+npm run db:generate
+npm run typecheck
+npm run lint
+npm test
+npm run build
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Webhook Smoke Test
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+curl -X POST http://localhost:3000/api/intake/webhook \
+  -H 'content-type: application/json' \
+  -d '{
+    "source": "facebook",
+    "name": "Jane Doe",
+    "email": "jane@example.com",
+    "phone": "+15555555555",
+    "message": "Looking to buy downtown",
+    "raw": {}
+  }'
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+This creates a contact, lead event, AI classification, task, draft message, webhook event, audit log, and next action.
 
-## Deploy on Vercel
+## Agent Command Smoke Test
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+curl -X POST http://localhost:3000/api/agent/commands \
+  -H 'content-type: application/json' \
+  -d '{
+    "command": "create_note",
+    "contactId": "CONTACT_ID",
+    "body": "External agent added this scoped note."
+  }'
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Allowed agent commands are `create_note`, `draft_email`, `draft_sms`, `create_task`, `update_stage`, `start_campaign`, `suggest_next_action`, and `request_human_approval`.
