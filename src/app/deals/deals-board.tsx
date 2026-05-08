@@ -95,22 +95,61 @@ function cardColorClass(type: string) {
 }
 
 const legendItems = [
-  { label: "Buyer", className: "border-l-[#7aa7d9] bg-[#f7fbff]" },
-  { label: "Tenant", className: "border-l-[#6bbac8] bg-[#f5fcfd]" },
-  { label: "Seller", className: "border-l-[#d98a7a] bg-[#fff8f7]" },
-  { label: "Landlord", className: "border-l-[#d8aa55] bg-[#fffaf0]" },
-  { label: "Unknown", className: "border-l-[#aab2aa] bg-white" },
-];
+  { key: "buyer", label: "Buyer", className: "border-l-[#7aa7d9] bg-[#f7fbff]" },
+  { key: "tenant", label: "Tenant", className: "border-l-[#6bbac8] bg-[#f5fcfd]" },
+  { key: "seller", label: "Seller", className: "border-l-[#d98a7a] bg-[#fff8f7]" },
+  { key: "landlord", label: "Landlord", className: "border-l-[#d8aa55] bg-[#fffaf0]" },
+  { key: "unknown", label: "Unknown", className: "border-l-[#aab2aa] bg-white" },
+] as const;
 
-function DealColorLegend() {
+type CardTypeFilter = (typeof legendItems)[number]["key"] | "all";
+
+function normalizedCardType(type: string): CardTypeFilter {
+  return ["buyer", "tenant", "seller", "landlord"].includes(type) ? (type as CardTypeFilter) : "unknown";
+}
+
+function DealColorLegend({
+  activeType,
+  onChange,
+  deals,
+}: {
+  activeType: CardTypeFilter;
+  onChange: (type: CardTypeFilter) => void;
+  deals: BoardDeal[];
+}) {
+  const countFor = (type: CardTypeFilter) =>
+    type === "all" ? deals.length : deals.filter((deal) => normalizedCardType(deal.type) === type).length;
+
   return (
-    <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-[#68736a]" aria-label="Deal card color legend">
-      <span className="font-medium text-[#46534b]">Card colors</span>
-      {legendItems.map((item) => (
-        <span key={item.label} className={`inline-flex items-center rounded border border-[#d9ded5] border-l-4 px-2 py-1 ${item.className}`}>
-          {item.label}
-        </span>
-      ))}
+    <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-[#68736a]" aria-label="Deal card color filters">
+      <span className="font-medium text-[#46534b]">Show</span>
+      <button
+        type="button"
+        onClick={() => onChange("all")}
+        aria-pressed={activeType === "all"}
+        className={`inline-flex items-center rounded border px-2 py-1 transition hover:bg-[#f5f7f2] ${
+          activeType === "all" ? "border-[#17231d] bg-[#17231d] text-white" : "border-[#d9ded5] bg-white"
+        }`}
+      >
+        All · {countFor("all")}
+      </button>
+      {legendItems.map((item) => {
+        const active = activeType === item.key;
+        return (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => onChange(active ? "all" : item.key)}
+            aria-pressed={active}
+            title={`Show only ${item.label.toLowerCase()} cards`}
+            className={`inline-flex items-center rounded border border-l-4 px-2 py-1 transition hover:-translate-y-px hover:shadow-sm ${item.className} ${
+              active ? "border-[#17231d] ring-2 ring-[#17231d]/20" : "border-[#d9ded5]"
+            }`}
+          >
+            {item.label} · {countFor(item.key)}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -340,7 +379,9 @@ export function DealsBoard({ deals }: { deals: BoardDeal[] }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [overStage, setOverStage] = useState<string | null>(null);
+  const [typeFilter, setTypeFilter] = useState<CardTypeFilter>("all");
   const [isPending, startTransition] = useTransition();
+  const visibleDeals = typeFilter === "all" ? deals : deals.filter((deal) => normalizedCardType(deal.type) === typeFilter);
 
   function moveDeal(dealId: string, stage: string) {
     startTransition(async () => {
@@ -353,11 +394,11 @@ export function DealsBoard({ deals }: { deals: BoardDeal[] }) {
 
   return (
     <>
-      <DealColorLegend />
+      <DealColorLegend activeType={typeFilter} onChange={setTypeFilter} deals={deals} />
       <div className="overflow-x-auto pb-2">
         <div className="grid min-w-[980px] grid-cols-4 gap-3">
           {dealPipelineStages.map((stage) => {
-            const cards = deals.filter((deal) => stage.dealStages.includes(deal.stage as never));
+            const cards = visibleDeals.filter((deal) => stage.dealStages.includes(deal.stage as never));
             const isOver = overStage === stage.key;
             return (
               <div
@@ -387,7 +428,9 @@ export function DealsBoard({ deals }: { deals: BoardDeal[] }) {
                         />
                       </div>
                     )) : (
-                      <div className="rounded border border-dashed border-[#d9ded5] p-4 text-sm text-[#68736a]">Drop deals here.</div>
+                      <div className="rounded border border-dashed border-[#d9ded5] p-4 text-sm text-[#68736a]">
+                        {typeFilter === "all" ? "Drop deals here." : `No ${contactTypeLabel(typeFilter).toLowerCase()} deals here.`}
+                      </div>
                     )}
                   </div>
                   {isPending ? <div className="mt-2 text-[11px] text-[#68736a]">Moving...</div> : null}

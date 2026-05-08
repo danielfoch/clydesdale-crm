@@ -27,27 +27,6 @@ function AddLeadPopover() {
   );
 }
 
-const legendItems = [
-  { label: "Buyer", className: "border-l-[#7aa7d9] bg-[#f7fbff]" },
-  { label: "Tenant", className: "border-l-[#6bbac8] bg-[#f5fcfd]" },
-  { label: "Seller", className: "border-l-[#d98a7a] bg-[#fff8f7]" },
-  { label: "Landlord", className: "border-l-[#d8aa55] bg-[#fffaf0]" },
-  { label: "Unknown", className: "border-l-[#aab2aa] bg-white" },
-];
-
-function PipelineLegend() {
-  return (
-    <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-[#68736a]" aria-label="Pipeline card color legend">
-      <span className="font-medium text-[#46534b]">Card colors</span>
-      {legendItems.map((item) => (
-        <span key={item.label} className={`inline-flex items-center rounded border border-[#d9ded5] border-l-4 px-2 py-1 ${item.className}`}>
-          {item.label}
-        </span>
-      ))}
-    </div>
-  );
-}
-
 async function getPipelineContacts(): Promise<PipelinePerson[]> {
   const db = getPrisma();
   const workspaceId = await getDefaultWorkspaceId();
@@ -102,7 +81,6 @@ export default async function PipelinePage() {
         <PageHeader title="Pipeline" subtitle="Who am I turning into a client?" />
         <AddLeadPopover />
       </div>
-      <PipelineLegend />
       <PipelineBoard people={people} />
     </>
   );

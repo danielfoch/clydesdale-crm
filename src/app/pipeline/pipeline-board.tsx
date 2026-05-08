@@ -64,6 +64,66 @@ export type PipelinePerson = {
   tasks: PipelineTask[];
 };
 
+const legendItems = [
+  { key: "buyer", label: "Buyer", className: "border-l-[#7aa7d9] bg-[#f7fbff]" },
+  { key: "tenant", label: "Tenant", className: "border-l-[#6bbac8] bg-[#f5fcfd]" },
+  { key: "seller", label: "Seller", className: "border-l-[#d98a7a] bg-[#fff8f7]" },
+  { key: "landlord", label: "Landlord", className: "border-l-[#d8aa55] bg-[#fffaf0]" },
+  { key: "unknown", label: "Unknown", className: "border-l-[#aab2aa] bg-white" },
+] as const;
+
+type CardTypeFilter = (typeof legendItems)[number]["key"] | "all";
+
+function normalizedCardType(type: string): CardTypeFilter {
+  return ["buyer", "tenant", "seller", "landlord"].includes(type) ? (type as CardTypeFilter) : "unknown";
+}
+
+function PipelineLegend({
+  activeType,
+  onChange,
+  people,
+}: {
+  activeType: CardTypeFilter;
+  onChange: (type: CardTypeFilter) => void;
+  people: PipelinePerson[];
+}) {
+  const countFor = (type: CardTypeFilter) =>
+    type === "all" ? people.length : people.filter((person) => normalizedCardType(person.type) === type).length;
+
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-[#68736a]" aria-label="Pipeline card color filters">
+      <span className="font-medium text-[#46534b]">Show</span>
+      <button
+        type="button"
+        onClick={() => onChange("all")}
+        aria-pressed={activeType === "all"}
+        className={`inline-flex items-center rounded border px-2 py-1 transition hover:bg-[#f5f7f2] ${
+          activeType === "all" ? "border-[#17231d] bg-[#17231d] text-white" : "border-[#d9ded5] bg-white"
+        }`}
+      >
+        All · {countFor("all")}
+      </button>
+      {legendItems.map((item) => {
+        const active = activeType === item.key;
+        return (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => onChange(active ? "all" : item.key)}
+            aria-pressed={active}
+            title={`Show only ${item.label.toLowerCase()} cards`}
+            className={`inline-flex items-center rounded border border-l-4 px-2 py-1 transition hover:-translate-y-px hover:shadow-sm ${item.className} ${
+              active ? "border-[#17231d] ring-2 ring-[#17231d]/20" : "border-[#d9ded5]"
+            }`}
+          >
+            {item.label} · {countFor(item.key)}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function SecondaryButton({ children }: { children: React.ReactNode }) {
   return <button className="rounded border border-[#cfd6ca] px-2.5 py-1.5 text-xs hover:bg-[#f5f7f2]">{children}</button>;
 }
@@ -319,7 +379,9 @@ export function PipelineBoard({ people }: { people: PipelinePerson[] }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [overStage, setOverStage] = useState<string | null>(null);
+  const [typeFilter, setTypeFilter] = useState<CardTypeFilter>("all");
   const [isPending, startTransition] = useTransition();
+  const visiblePeople = typeFilter === "all" ? people : people.filter((person) => normalizedCardType(person.type) === typeFilter);
 
   function moveContact(contactId: string, stage: string) {
     startTransition(async () => {
@@ -331,50 +393,53 @@ export function PipelineBoard({ people }: { people: PipelinePerson[] }) {
   }
 
   return (
-    <div className="overflow-x-auto pb-2">
-      <div className="grid min-w-[880px] grid-cols-4 gap-2.5">
-        {leadPipelineStages.map((stage) => {
-          const cards = people.filter((person) => stage.contactStages.includes(person.stage as never));
-          const isOver = overStage === stage.key;
-          return (
-            <div
-              key={stage.key}
-              onDragOver={(event) => {
-                event.preventDefault();
-                event.dataTransfer.dropEffect = "move";
-                setOverStage(stage.key);
-              }}
-              onDragLeave={() => setOverStage(null)}
-              onDrop={(event) => {
-                event.preventDefault();
-                const contactId = event.dataTransfer.getData("text/plain") || draggingId;
-                if (contactId) moveContact(contactId, stage.moveToStage);
-              }}
-              className={isOver ? "rounded-md ring-2 ring-[#17231d]/25" : "rounded-md"}
-            >
-              <Panel title={<span title={stage.description} className="cursor-help">{stage.label} · {cards.length}</span>}>
-                <p className="mb-2 min-h-7 text-[10px] leading-4 text-[#68736a]">{stage.description}</p>
-                <div className={`space-y-2 rounded-md transition ${isOver ? "bg-[#edf1e9] p-1.5" : ""}`}>
-                  {cards.length ? cards.map((person) => (
-                    <div key={person.id} onDragStart={() => setDraggingId(person.id)} onDragEnd={() => { setDraggingId(null); setOverStage(null); }}>
-                      <ContactCard
-                        person={person}
-                        expanded={expandedId === person.id}
-                        onToggle={() => setExpandedId(expandedId === person.id ? null : person.id)}
-                      />
-                    </div>
-                  )) : (
-                    <div className="rounded border border-dashed border-[#d9ded5] p-3 text-xs text-[#68736a]">
-                      Drop cards here.
-                    </div>
-                  )}
-                </div>
-                {isPending ? <div className="mt-2 text-[11px] text-[#68736a]">Moving...</div> : null}
-              </Panel>
-            </div>
-          );
-        })}
+    <>
+      <PipelineLegend activeType={typeFilter} onChange={setTypeFilter} people={people} />
+      <div className="overflow-x-auto pb-2">
+        <div className="grid min-w-[880px] grid-cols-4 gap-2.5">
+          {leadPipelineStages.map((stage) => {
+            const cards = visiblePeople.filter((person) => stage.contactStages.includes(person.stage as never));
+            const isOver = overStage === stage.key;
+            return (
+              <div
+                key={stage.key}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                  setOverStage(stage.key);
+                }}
+                onDragLeave={() => setOverStage(null)}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  const contactId = event.dataTransfer.getData("text/plain") || draggingId;
+                  if (contactId) moveContact(contactId, stage.moveToStage);
+                }}
+                className={isOver ? "rounded-md ring-2 ring-[#17231d]/25" : "rounded-md"}
+              >
+                <Panel title={<span title={stage.description} className="cursor-help">{stage.label} · {cards.length}</span>}>
+                  <p className="mb-2 min-h-7 text-[10px] leading-4 text-[#68736a]">{stage.description}</p>
+                  <div className={`space-y-2 rounded-md transition ${isOver ? "bg-[#edf1e9] p-1.5" : ""}`}>
+                    {cards.length ? cards.map((person) => (
+                      <div key={person.id} onDragStart={() => setDraggingId(person.id)} onDragEnd={() => { setDraggingId(null); setOverStage(null); }}>
+                        <ContactCard
+                          person={person}
+                          expanded={expandedId === person.id}
+                          onToggle={() => setExpandedId(expandedId === person.id ? null : person.id)}
+                        />
+                      </div>
+                    )) : (
+                      <div className="rounded border border-dashed border-[#d9ded5] p-3 text-xs text-[#68736a]">
+                        {typeFilter === "all" ? "Drop cards here." : `No ${contactTypeLabel(typeFilter).toLowerCase()} cards here.`}
+                      </div>
+                    )}
+                  </div>
+                  {isPending ? <div className="mt-2 text-[11px] text-[#68736a]">Moving...</div> : null}
+                </Panel>
+              </div>
+            );
+          })}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
