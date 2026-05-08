@@ -13,7 +13,7 @@ async function getDeals(): Promise<BoardDeal[]> {
     include: {
       primaryContact: { include: { emails: true, phones: true } },
       participants: { include: { contact: { include: { emails: true, phones: true } } } },
-      crmTasks: { orderBy: { dueAt: "asc" }, take: 5 },
+      crmTasks: { orderBy: { createdAt: "asc" }, take: 20 },
     },
     orderBy: [{ riskLevel: "desc" }, { nextActionDueAt: "asc" }],
   });
@@ -24,6 +24,7 @@ async function getDeals(): Promise<BoardDeal[]> {
       ? {
           id: deal.primaryContact.id,
           name: deal.primaryContact.name,
+          urgencyScore: deal.primaryContact.urgencyScore,
           email: deal.primaryContact.emails[0]?.email,
           phone: deal.primaryContact.phones[0]?.phone,
         }
@@ -32,6 +33,7 @@ async function getDeals(): Promise<BoardDeal[]> {
       ? {
           id: participantContact.id,
           name: participantContact.name,
+          urgencyScore: participantContact.urgencyScore,
           email: participantContact.emails[0]?.email,
           phone: participantContact.phones[0]?.phone,
         }
@@ -53,8 +55,10 @@ async function getDeals(): Promise<BoardDeal[]> {
       tasks: deal.crmTasks.map((task) => ({
         id: task.id,
         title: task.title,
+        type: task.type,
         status: task.status,
         dueAt: task.dueAt?.toISOString() ?? null,
+        completedAt: task.completedAt?.toISOString() ?? null,
       })),
     };
   });

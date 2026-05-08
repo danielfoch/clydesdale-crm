@@ -61,7 +61,7 @@ async function getPipelineContacts(): Promise<PipelinePerson[]> {
       emails: { select: { email: true } },
       phones: { select: { phone: true } },
       notes: { orderBy: { createdAt: "desc" }, take: 1, select: { body: true } },
-      tasks: { orderBy: { dueAt: "asc" }, take: 5, select: { id: true, title: true, status: true, dueAt: true } },
+      tasks: { orderBy: { createdAt: "asc" }, take: 20, select: { id: true, title: true, type: true, status: true, dueAt: true, completedAt: true } },
     },
     orderBy: [{ urgencyScore: "desc" }, { nextActionDueAt: "asc" }],
   });
@@ -85,8 +85,10 @@ async function getPipelineContacts(): Promise<PipelinePerson[]> {
     tasks: person.tasks.map((task) => ({
       id: task.id,
       title: task.title,
+      type: task.type,
       status: task.status,
       dueAt: task.dueAt?.toISOString() ?? null,
+      completedAt: task.completedAt?.toISOString() ?? null,
     })),
   }));
 }

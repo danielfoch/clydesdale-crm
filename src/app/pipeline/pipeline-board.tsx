@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import {
   assignContactAction,
+  completeLoopChecklistItemAction,
   createDealAction,
   draftContactMessageAction,
   logCallAction,
@@ -33,12 +34,15 @@ import {
   stageLabel,
   urgencyLabel,
 } from "@/lib/display";
+import { getPipelineLoopItems, loopTaskType } from "@/lib/loop-checklists";
 
 type PipelineTask = {
   id: string;
   title: string;
+  type: string;
   status: string;
   dueAt: string | null;
+  completedAt: string | null;
 };
 
 export type PipelinePerson = {
@@ -101,12 +105,6 @@ function urgencyClass(score: number) {
   return "bg-[#ecfdf5] text-[#166534]";
 }
 
-function urgencyShort(score: number) {
-  if (score >= 75) return "H";
-  if (score >= 40) return "M";
-  return "L";
-}
-
 function dueClass(value: string) {
   if (value.startsWith("-")) return "bg-[#fee2e2] text-[#7f1d1d]";
   if (value === "0d") return "bg-[#fef3c7] text-[#78350f]";
@@ -154,6 +152,10 @@ function ContactCard({
   const primaryContact = person.emails[0]?.email ?? person.phones[0]?.phone ?? "No contact info";
   const latestNote = person.notes[0]?.body ?? person.aiSummary ?? "No notes yet.";
   const openTasks = person.tasks.filter((task) => task.status === "open").slice(0, 2);
+  const loopItems = getPipelineLoopItems(person.stage);
+  const completedLoopCount = loopItems.filter((item) =>
+    person.tasks.some((task) => task.type === loopTaskType("pipeline", person.stage, item.key) && task.status === "done"),
+  ).length;
   const dealType = ["buyer", "tenant", "seller", "landlord"].includes(person.type) ? person.type : "buyer";
   const dueDelta = formatDueDelta(person.nextActionDueAt);
   const dueTitle = `Due: ${formatDue(new Date(person.nextActionDueAt))}`;
@@ -182,8 +184,11 @@ function ContactCard({
                 <IconChip label={dueTitle} className={dueClass(dueDelta)}>
                   {dueDelta}
                 </IconChip>
-                <IconChip label={`Urgency: ${urgencyLabel(person.urgencyScore)} (${person.urgencyScore}/100)`} className={urgencyClass(person.urgencyScore)}>
-                  {urgencyShort(person.urgencyScore)}
+                <IconChip label={`Lead score: ${urgencyLabel(person.urgencyScore)} (${person.urgencyScore}/100). Completing loop boxes adds +5.`} className={urgencyClass(person.urgencyScore)}>
+                  {person.urgencyScore}
+                </IconChip>
+                <IconChip label={`Loop progress: ${completedLoopCount}/${loopItems.length}`} className="bg-[#e9efe6] text-[#304037]">
+                  {completedLoopCount}/{loopItems.length}
                 </IconChip>
               </div>
               <div className="mt-0.5 truncate text-[10px] text-[#68736a]" title={`${typeLabel} · ${primaryContact}`}>{typeLabel} · {primaryContact}</div>
@@ -226,6 +231,31 @@ function ContactCard({
               ))}
             </div>
           ) : null}
+
+          <div className="space-y-1.5">
+            <div className="text-[10px] font-semibold uppercase tracking-normal text-[#68736a]">Loop checklist · +5 score per box</div>
+            {loopItems.map((item) => {
+              const type = loopTaskType("pipeline", person.stage, item.key);
+              const done = person.tasks.some((task) => task.type === type && task.status === "done");
+              return (
+                <form key={item.key} action={completeLoopChecklistItemAction} className="flex items-center justify-between gap-2 rounded border border-[#e4e8df] bg-white/70 p-2">
+                  <input type="hidden" name="scope" value="pipeline" />
+                  <input type="hidden" name="contactId" value={person.id} />
+                  <input type="hidden" name="stage" value={person.stage} />
+                  <input type="hidden" name="itemKey" value={item.key} />
+                  <input type="hidden" name="label" value={item.label} />
+                  <span className={`line-clamp-1 text-xs ${done ? "text-[#68736a] line-through" : "text-[#26352c]"}`}>{item.label}</span>
+                  <button
+                    disabled={done}
+                    className={`grid size-7 place-items-center rounded ${done ? "bg-[#dcfce7] text-[#14532d]" : "border border-[#cfd6ca] bg-white hover:bg-[#f5f7f2]"}`}
+                    aria-label={done ? `${item.label} completed` : `Complete ${item.label}`}
+                  >
+                    <CheckCircle2 size={14} />
+                  </button>
+                </form>
+              );
+            })}
+          </div>
 
           <MoveStageButtons contactId={person.id} currentStage={person.stage} />
 

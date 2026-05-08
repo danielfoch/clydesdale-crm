@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { CheckCircle2, ChevronDown, ChevronRight, GripVertical, Mail, MessageSquareText, Phone, Timer, UserRound } from "lucide-react";
 import {
   assignDealAction,
+  completeLoopChecklistItemAction,
   closeDealAction,
   draftContactMessageAction,
   logCallAction,
@@ -23,17 +24,21 @@ import {
   stageLabel,
   urgencyLabel,
 } from "@/lib/display";
+import { getDealLoopItems, loopTaskType } from "@/lib/loop-checklists";
 
 type DealTask = {
   id: string;
   title: string;
+  type: string;
   status: string;
   dueAt: string | null;
+  completedAt: string | null;
 };
 
 type DealContact = {
   id: string;
   name: string;
+  urgencyScore?: number;
   email?: string;
   phone?: string;
 };
@@ -123,12 +128,6 @@ function urgencyClass(score: number) {
   return "bg-[#ecfdf5] text-[#166534]";
 }
 
-function urgencyShort(score: number) {
-  if (score >= 75) return "H";
-  if (score >= 40) return "M";
-  return "L";
-}
-
 function dueClass(value: string) {
   if (value.startsWith("-")) return "bg-[#fee2e2] text-[#7f1d1d]";
   if (value === "0d") return "bg-[#fef3c7] text-[#78350f]";
@@ -169,7 +168,12 @@ function DealCard({
   const contact = deal.primaryContact ?? deal.contact;
   const contactInfo = contact?.email ?? contact?.phone ?? "No contact info";
   const openTasks = deal.tasks.filter((task) => task.status === "open").slice(0, 2);
+  const loopItems = getDealLoopItems(deal.stage);
+  const completedLoopCount = loopItems.filter((item) =>
+    deal.tasks.some((task) => task.type === loopTaskType("deal", deal.stage, item.key) && task.status === "done"),
+  ).length;
   const urgencyScore = deal.riskLevel === "high" || deal.riskLevel === "stalled" ? 82 : 48;
+  const clientScore = contact?.urgencyScore ?? urgencyScore;
   const value = deal.valueCents ? `$${(deal.valueCents / 100).toLocaleString()}` : "Not set";
   const dueDelta = formatDueDelta(deal.nextActionDueAt);
   const dueTitle = `Due: ${formatDue(new Date(deal.nextActionDueAt))}`;
@@ -195,8 +199,11 @@ function DealCard({
                 <IconChip label={dueTitle} className={dueClass(dueDelta)}>
                   {dueDelta}
                 </IconChip>
-                <IconChip label={`Urgency: ${urgencyLabel(urgencyScore)} (${urgencyScore}/100)`} className={urgencyClass(urgencyScore)}>
-                  {urgencyShort(urgencyScore)}
+                <IconChip label={`Client score: ${urgencyLabel(clientScore)} (${clientScore}/100). Completing loop boxes adds +5.`} className={urgencyClass(clientScore)}>
+                  {clientScore}
+                </IconChip>
+                <IconChip label={`Loop progress: ${completedLoopCount}/${loopItems.length}`} className="bg-[#e9efe6] text-[#304037]">
+                  {completedLoopCount}/{loopItems.length}
                 </IconChip>
               </div>
               <div className="mt-0.5 truncate text-[10px] text-[#68736a]" title={`${typeLabel} · ${deal.propertyAddress ?? deal.name}`}>
@@ -242,6 +249,32 @@ function DealCard({
               ))}
             </div>
           ) : null}
+
+          <div className="space-y-1.5">
+            <div className="text-[10px] font-semibold uppercase tracking-normal text-[#68736a]">Loop checklist · +5 score per box</div>
+            {loopItems.map((item) => {
+              const type = loopTaskType("deal", deal.stage, item.key);
+              const done = deal.tasks.some((task) => task.type === type && task.status === "done");
+              return (
+                <form key={item.key} action={completeLoopChecklistItemAction} className="flex items-center justify-between gap-2 rounded border border-[#e4e8df] bg-white/70 p-2">
+                  <input type="hidden" name="scope" value="deal" />
+                  <input type="hidden" name="dealId" value={deal.id} />
+                  {contact ? <input type="hidden" name="contactId" value={contact.id} /> : null}
+                  <input type="hidden" name="stage" value={deal.stage} />
+                  <input type="hidden" name="itemKey" value={item.key} />
+                  <input type="hidden" name="label" value={item.label} />
+                  <span className={`line-clamp-1 text-xs ${done ? "text-[#68736a] line-through" : "text-[#26352c]"}`}>{item.label}</span>
+                  <button
+                    disabled={done}
+                    className={`grid size-7 place-items-center rounded ${done ? "bg-[#dcfce7] text-[#14532d]" : "border border-[#cfd6ca] bg-white hover:bg-[#f5f7f2]"}`}
+                    aria-label={done ? `${item.label} completed` : `Complete ${item.label}`}
+                  >
+                    <CheckCircle2 size={14} />
+                  </button>
+                </form>
+              );
+            })}
+          </div>
 
           <div className="space-y-2">
             <div className="text-xs font-semibold uppercase tracking-normal text-[#68736a]">Move stage</div>

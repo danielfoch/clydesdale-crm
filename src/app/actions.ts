@@ -9,6 +9,7 @@ import { getDefaultWorkspaceId } from "@/lib/workspace";
 import { writeAudit } from "@/lib/audit";
 import { generateClientForLifeCheckin } from "@/lib/ai";
 import { executeContactAction } from "@/lib/contact-actions";
+import { loopTaskType } from "@/lib/loop-checklists";
 import { approveAndSendMessage, createMessageDraft, startTwilioVoiceCall } from "@/lib/messages";
 
 function requiredString(formData: FormData, key: string) {
@@ -248,6 +249,94 @@ export async function markTaskDoneAction(formData: FormData) {
   revalidatePath("/pipeline");
   revalidatePath("/deals");
   if (task.contactId) revalidatePath(`/people/${task.contactId}`);
+}
+
+export async function completeLoopChecklistItemAction(formData: FormData) {
+  const db = getPrisma();
+  const workspaceId = await getDefaultWorkspaceId();
+  const scope = requiredString(formData, "scope") as "pipeline" | "deal";
+  const itemKey = requiredString(formData, "itemKey");
+  const stage = requiredString(formData, "stage");
+  const label = requiredString(formData, "label");
+  const contactId = optionalString(formData, "contactId");
+  const dealId = optionalString(formData, "dealId");
+  const type = loopTaskType(scope, stage, itemKey);
+
+  if (!contactId && !dealId) throw new Error("contactId or dealId is required");
+
+  const existing = await db.task.findFirst({
+    where: {
+      workspaceId,
+      type,
+      contactId: contactId ?? undefined,
+      dealId: dealId ?? undefined,
+    },
+  });
+
+  if (existing?.status === "done") {
+    revalidatePath("/today");
+    revalidatePath("/pipeline");
+    revalidatePath("/deals");
+    if (contactId) revalidatePath(`/people/${contactId}`);
+    return;
+  }
+
+  const task = existing
+    ? await db.task.update({ where: { id: existing.id }, data: { status: "done", completedAt: new Date() } })
+    : await db.task.create({
+        data: {
+          workspaceId,
+          contactId: contactId ?? undefined,
+          dealId: dealId ?? undefined,
+          type,
+          title: label,
+          status: "done",
+          completedAt: new Date(),
+          createdByAi: true,
+        },
+      });
+
+  const deal = dealId ? await db.deal.findUnique({ where: { id: dealId }, include: { participants: true } }) : null;
+  const scoreContactId = contactId ?? deal?.primaryContactId ?? deal?.participants[0]?.contactId;
+  if (scoreContactId) {
+    const completedCount = await db.task.count({
+      where: {
+        workspaceId,
+        contactId: scoreContactId,
+        type: { startsWith: "loop:" },
+        status: "done",
+      },
+    });
+    await db.contact.update({
+      where: { id: scoreContactId },
+      data: {
+        urgencyScore: { increment: 5 },
+        nextActionConfidence: Math.min(95, 70 + completedCount * 4),
+        nextActionReason: `Loop progress: ${label}`,
+      },
+    });
+    const updated = await db.contact.findUnique({ where: { id: scoreContactId }, select: { urgencyScore: true } });
+    if (updated && updated.urgencyScore > 100) {
+      await db.contact.update({ where: { id: scoreContactId }, data: { urgencyScore: 100 } });
+    }
+  }
+
+  if (dealId) {
+    await db.deal.update({
+      where: { id: dealId },
+      data: {
+        riskLevel: "normal",
+        nextAction: `Next checklist step after: ${label}`,
+        nextActionDueAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      },
+    });
+  }
+
+  await writeAudit({ workspaceId, actorType: "user", action: "loop_checklist.completed", targetType: "task", targetId: task.id, metadata: { scope, stage, itemKey, label, contactId, dealId } }, db);
+  revalidatePath("/today");
+  revalidatePath("/pipeline");
+  revalidatePath("/deals");
+  if (scoreContactId) revalidatePath(`/people/${scoreContactId}`);
 }
 
 export async function logCallAction(formData: FormData) {
