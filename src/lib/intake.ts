@@ -22,6 +22,21 @@ export const leadPayloadSchema = z.object({
 
 export type LeadPayload = z.infer<typeof leadPayloadSchema>;
 
+function normalizePhone(phone?: string | null) {
+  if (!phone) return undefined;
+  const trimmed = phone.trim();
+  const digits = trimmed.replace(/\D/g, "");
+  if (!digits) return undefined;
+  if (trimmed.startsWith("+")) return `+${digits}`;
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
+  return trimmed;
+}
+
+function normalizeEmail(email?: string | null) {
+  return email?.trim().toLowerCase() || undefined;
+}
+
 export async function intakeLead(
   input: LeadPayload,
   options: { workspaceId?: string; db?: DbClient } = {},
@@ -29,6 +44,8 @@ export async function intakeLead(
   const db = options.db ?? getPrisma();
   const workspaceId = options.workspaceId ?? (await getDefaultWorkspaceId());
   const payload = leadPayloadSchema.parse(input);
+  const email = normalizeEmail(payload.email);
+  const phone = normalizePhone(payload.phone);
   const classification = await classifyLead(payload);
 
   const contact = await db.contact.create({
@@ -47,12 +64,12 @@ export async function intakeLead(
       nextActionDueAt: new Date(Date.now() + (classification.urgencyScore >= 75 ? 5 : 60) * 60 * 1000),
       nextActionReason: classification.nextActionReason,
       nextActionConfidence: classification.nextActionConfidence,
-      emails: payload.email ? { create: { email: payload.email } } : undefined,
-      phones: payload.phone ? { create: { phone: payload.phone } } : undefined,
+      emails: email ? { create: { email } } : undefined,
+      phones: phone ? { create: { phone } } : undefined,
       consents: {
         create: [
-          { channel: "email", status: payload.email ? "unknown" : "opted_out", reason: "lead_intake" },
-          { channel: "sms", status: payload.phone ? "unknown" : "opted_out", reason: "lead_intake" },
+          { channel: "email", status: email ? "unknown" : "opted_out", reason: "lead_intake" },
+          { channel: "sms", status: phone ? "unknown" : "opted_out", reason: "lead_intake" },
         ],
       },
       tags: { create: classification.tags.map((tag) => ({ tag })) },
@@ -94,8 +111,8 @@ export async function intakeLead(
     {
       workspaceId,
       contactId: contact.id,
-      channel: payload.phone ? "sms" : "email",
-      subject: payload.phone ? undefined : "Thanks for reaching out",
+      channel: phone ? "sms" : "email",
+      subject: phone ? undefined : "Thanks for reaching out",
       body: classification.suggestedFirstResponse,
       aiGenerated: true,
       metadata: { source: "lead_intake" },

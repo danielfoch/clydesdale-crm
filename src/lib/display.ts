@@ -119,6 +119,19 @@ export function formatDue(date: Date) {
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+export function formatDueDelta(value: Date | string) {
+  const date = typeof value === "string" ? new Date(value) : value;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const dueDay = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const diffDays = Math.round((dueDay - today) / (24 * 60 * 60 * 1000));
+
+  if (diffDays === 0) return "0d";
+  if (diffDays > 0 && diffDays <= 9) return `${diffDays}d`;
+  if (diffDays < 0 && diffDays >= -9) return `${diffDays}d`;
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
 export function contactTypeBadgeClass(value: string | null | undefined) {
   switch (value) {
     case "buyer":
