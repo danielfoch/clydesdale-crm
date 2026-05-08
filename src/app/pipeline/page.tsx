@@ -1,5 +1,5 @@
 import { manualLeadAction } from "@/app/actions";
-import { Button, inputClass, PageHeader } from "@/components/ui";
+import { Button, inputClass } from "@/components/ui";
 import { leadPipelineStages } from "@/lib/display";
 import { getMotivationQuotes } from "@/lib/motivation-quotes";
 import { getPrisma } from "@/lib/prisma";
@@ -11,8 +11,8 @@ export const dynamic = "force-dynamic";
 
 function AddLeadPopover() {
   return (
-    <details className="relative [&>summary::-webkit-details-marker]:hidden">
-      <summary className="cursor-pointer rounded bg-[#17231d] px-3 py-2 text-sm font-medium text-white hover:bg-[#26382f]">
+    <details className="relative inline-block self-start [&>summary::-webkit-details-marker]:hidden">
+      <summary className="inline-flex cursor-pointer items-center rounded bg-[#17231d] px-2.5 py-1.5 text-xs font-medium text-white hover:bg-[#26382f]">
         Add Person
       </summary>
       <div className="absolute right-0 z-30 mt-2 w-[min(92vw,420px)] rounded-md border border-[#d9ded5] bg-white p-4 shadow-xl">
@@ -85,8 +85,11 @@ export default async function PipelinePage() {
   return (
     <>
       <div className="mb-5 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(420px,560px)] lg:items-start">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between lg:block">
-          <PageHeader title="Pipeline" subtitle="Who am I turning into a client?" />
+        <div className="flex items-start justify-between gap-3">
+          <header className="flex flex-col gap-1">
+            <h1 className="text-2xl font-semibold tracking-normal text-[#17231d]">Pipeline</h1>
+            <p className="max-w-3xl text-sm text-[#5f6a62]">Who am I turning into a client?</p>
+          </header>
           <AddLeadPopover />
         </div>
         <MotivationRotator quotes={motivationQuotes.map((quote) => ({
