@@ -2,8 +2,21 @@ import type { MessageChannel, Prisma } from "@prisma/client";
 import { writeAudit } from "./audit";
 import { getPrisma, type DbClient } from "./prisma";
 
-function hasTwilioConfig() {
+function hasTwilioSmsConfig() {
   return Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_FROM_NUMBER);
+}
+
+function hasTwilioVoiceConfig() {
+  return Boolean(
+    process.env.TWILIO_ACCOUNT_SID &&
+      process.env.TWILIO_AUTH_TOKEN &&
+      process.env.TWILIO_FROM_NUMBER &&
+      process.env.TWILIO_AGENT_NUMBER,
+  );
+}
+
+function escapeXml(value: string) {
+  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 }
 
 async function sendTwilioSms(to: string, body: string) {
@@ -13,6 +26,21 @@ async function sendTwilioSms(to: string, body: string) {
     from: process.env.TWILIO_FROM_NUMBER,
     to,
     body,
+  });
+}
+
+export async function startTwilioVoiceCall(to: string) {
+  if (!hasTwilioVoiceConfig()) return null;
+
+  const twilio = (await import("twilio")).default;
+  const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+  const from = process.env.TWILIO_FROM_NUMBER!;
+  const agentNumber = process.env.TWILIO_AGENT_NUMBER!;
+
+  return client.calls.create({
+    to: agentNumber,
+    from,
+    twiml: `<Response><Say>Connecting your Clydesdale CRM call.</Say><Dial callerId="${escapeXml(from)}">${escapeXml(to)}</Dial></Response>`,
   });
 }
 
@@ -114,7 +142,7 @@ export async function approveAndSendMessage(messageId: string, db: DbClient = ge
     return blocked;
   }
 
-  if (message.channel === "sms" && hasTwilioConfig() && message.contact.phones[0]?.phone) {
+  if (message.channel === "sms" && hasTwilioSmsConfig() && message.contact.phones[0]?.phone) {
     const sent = await sendTwilioSms(message.contact.phones[0].phone, message.body);
     const updated = await db.message.update({
       where: { id: messageId },

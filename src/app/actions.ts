@@ -8,7 +8,7 @@ import { getPrisma } from "@/lib/prisma";
 import { getDefaultWorkspaceId } from "@/lib/workspace";
 import { writeAudit } from "@/lib/audit";
 import { generateClientForLifeCheckin } from "@/lib/ai";
-import { approveAndSendMessage, createMessageDraft } from "@/lib/messages";
+import { approveAndSendMessage, createMessageDraft, startTwilioVoiceCall } from "@/lib/messages";
 
 function requiredString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -249,6 +249,33 @@ export async function logCallAction(formData: FormData) {
             include: { participants: { include: { contact: { include: { phones: true } } } } },
           }))?.participants[0]?.contact
         : null;
+  const phone = contact?.phones[0]?.phone;
+  let callMetadata: Record<string, string | null> = { source: "crm", phone: phone ?? null, provider: "log" };
+  let status = "logged";
+
+  if (phone) {
+    try {
+      const twilioCall = await startTwilioVoiceCall(phone);
+      if (twilioCall) {
+        status = "initiated";
+        callMetadata = {
+          source: "crm",
+          phone,
+          provider: "twilio",
+          twilioCallSid: twilioCall.sid,
+          twilioStatus: twilioCall.status,
+        };
+      }
+    } catch (error) {
+      status = "failed_twilio";
+      callMetadata = {
+        source: "crm",
+        phone,
+        provider: "twilio",
+        error: error instanceof Error ? error.message : "Unknown Twilio Voice error",
+      };
+    }
+  }
 
   const message = await db.message.create({
     data: {
@@ -256,10 +283,10 @@ export async function logCallAction(formData: FormData) {
       contactId: contact?.id,
       channel: "call",
       direction: "outbound",
-      status: "logged",
+      status,
       body,
       sentAt: new Date(),
-      metadata: { source: "today", phone: contact?.phones[0]?.phone ?? null },
+      metadata: callMetadata,
     },
   });
 
@@ -287,7 +314,7 @@ export async function logCallAction(formData: FormData) {
     });
   }
 
-  await writeAudit({ workspaceId, actorType: "user", action: "call.logged", targetType: "message", targetId: message.id }, db);
+  await writeAudit({ workspaceId, actorType: "user", action: status === "initiated" ? "call.started_twilio" : "call.logged", targetType: "message", targetId: message.id }, db);
   revalidatePath("/today");
   if (contact?.id) revalidatePath(`/people/${contact.id}`);
   if (dealId) revalidatePath("/deals");

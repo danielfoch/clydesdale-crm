@@ -1,5 +1,13 @@
 import Link from "next/link";
-import { createDealAction, manualLeadAction } from "@/app/actions";
+import {
+  assignContactAction,
+  createDealAction,
+  createTaskAction,
+  draftContactMessageAction,
+  logCallAction,
+  manualLeadAction,
+  snoozeContactAction,
+} from "@/app/actions";
 import { Badge, Button, inputClass, PageHeader, Panel } from "@/components/ui";
 import { getPrisma } from "@/lib/prisma";
 import { getDefaultWorkspaceId } from "@/lib/workspace";
@@ -7,6 +15,84 @@ import { getDefaultWorkspaceId } from "@/lib/workspace";
 export const dynamic = "force-dynamic";
 
 const filters = ["New", "Hot", "No reply", "Needs follow-up", "Active client", "Past client", "Opted out"];
+
+function SecondaryButton({ children }: { children: React.ReactNode }) {
+  return <button className="rounded border border-[#cfd6ca] px-3 py-2 text-sm hover:bg-[#f5f7f2]">{children}</button>;
+}
+
+function LeadAddPopover() {
+  return (
+    <details className="relative [&>summary::-webkit-details-marker]:hidden">
+      <summary className="cursor-pointer rounded bg-[#17231d] px-3 py-2 text-sm font-medium text-white hover:bg-[#26382f]">
+        Add lead
+      </summary>
+      <div className="absolute right-0 z-20 mt-2 w-[min(92vw,420px)] rounded-md border border-[#d9ded5] bg-white p-4 shadow-xl">
+        <form action={manualLeadAction} className="space-y-3">
+          <input name="name" className={inputClass} placeholder="Name" required />
+          <input name="email" className={inputClass} placeholder="Email" type="email" />
+          <input name="phone" className={inputClass} placeholder="Phone" />
+          <input name="source" className={inputClass} placeholder="Source" defaultValue="manual" />
+          <textarea name="message" className={inputClass} placeholder="Notes for AI CRM manager" rows={4} />
+          <Button>Create lead</Button>
+        </form>
+      </div>
+    </details>
+  );
+}
+
+function ContactDropdown({
+  contactId,
+  contactName,
+  contactType,
+}: {
+  contactId: string;
+  contactName: string;
+  contactType: string;
+}) {
+  const dealType = ["buyer", "tenant", "seller", "landlord"].includes(contactType) ? contactType : "buyer";
+  return (
+    <details className="relative ml-auto [&>summary::-webkit-details-marker]:hidden">
+      <summary className="cursor-pointer rounded border border-[#cfd6ca] px-3 py-2 text-sm hover:bg-[#f5f7f2]">Actions</summary>
+      <div className="absolute right-0 z-20 mt-2 w-[min(92vw,420px)] space-y-3 rounded-md border border-[#d9ded5] bg-white p-4 shadow-xl">
+        <div className="flex flex-wrap gap-2">
+          <form action={logCallAction}>
+            <input type="hidden" name="contactId" value={contactId} />
+            <input type="hidden" name="body" value="Call logged from People list." />
+            <Button>Call</Button>
+          </form>
+          <form action={snoozeContactAction}>
+            <input type="hidden" name="contactId" value={contactId} />
+            <input type="hidden" name="hours" value="24" />
+            <SecondaryButton>Snooze</SecondaryButton>
+          </form>
+          <form action={assignContactAction}>
+            <input type="hidden" name="contactId" value={contactId} />
+            <SecondaryButton>Assign</SecondaryButton>
+          </form>
+          <form action={createDealAction}>
+            <input type="hidden" name="contactId" value={contactId} />
+            <input type="hidden" name="name" value={`${contactName} opportunity`} />
+            <input type="hidden" name="type" value={dealType} />
+            <input type="hidden" name="nextAction" value="Confirm client criteria and next milestone" />
+            <SecondaryButton>Convert to Deal</SecondaryButton>
+          </form>
+        </div>
+        <form action={createTaskAction} className="space-y-2">
+          <input type="hidden" name="contactId" value={contactId} />
+          <input name="title" className={inputClass} placeholder="New task" required />
+          <input name="dueAt" className={inputClass} type="datetime-local" />
+          <Button>Create task</Button>
+        </form>
+        <form action={draftContactMessageAction} className="space-y-2">
+          <input type="hidden" name="contactId" value={contactId} />
+          <input type="hidden" name="channel" value="sms" />
+          <textarea name="body" className={inputClass} placeholder="Text draft" rows={3} required />
+          <Button>Save SMS draft</Button>
+        </form>
+      </div>
+    </details>
+  );
+}
 
 export default async function PeoplePage() {
   const db = getPrisma();
@@ -20,68 +106,38 @@ export default async function PeoplePage() {
 
   return (
     <>
-      <PageHeader title="People" subtitle="Every relationship in one list. If there is no next action, it is broken." />
-      <div className="mb-4 flex flex-wrap gap-2">{filters.map((filter) => <Badge key={filter}>{filter}</Badge>)}</div>
-      <div className="grid gap-4 lg:grid-cols-[360px_1fr]">
-        <Panel title="Fast lead add">
-          <form action={manualLeadAction} className="space-y-3">
-            <input name="name" className={inputClass} placeholder="Name" required />
-            <input name="email" className={inputClass} placeholder="Email" type="email" />
-            <input name="phone" className={inputClass} placeholder="Phone" />
-            <input name="source" className={inputClass} placeholder="Source" defaultValue="manual" />
-            <textarea name="message" className={inputClass} placeholder="What do they want?" rows={4} />
-            <Button>Create lead</Button>
-          </form>
-        </Panel>
-        <Panel title="Relationships">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[980px] text-left text-sm">
-              <thead className="border-b border-[#e4e8df] text-xs uppercase text-[#5f6a62]">
-                <tr>
-                  <th className="py-2 pr-3">Person</th>
-                  <th className="py-2 pr-3">Intent</th>
-                  <th className="py-2 pr-3">Stage</th>
-                  <th className="py-2 pr-3">Urgency</th>
-                  <th className="py-2 pr-3">Next action</th>
-                  <th className="py-2 pr-3">Due</th>
-                  <th className="py-2 pr-3">Convert</th>
-                </tr>
-              </thead>
-              <tbody>
-                {people.map((person) => {
-                  const optedOut = person.consents.some((consent) => consent.status === "opted_out");
-                  return (
-                    <tr key={person.id} className="border-b border-[#edf0ea] align-top">
-                      <td className="py-3 pr-3">
-                        <Link href={`/people/${person.id}`} className="font-medium hover:underline">{person.name}</Link>
-                        <div className="text-xs text-[#5f6a62]">{person.emails[0]?.email ?? person.phones[0]?.phone ?? "No contact info"}</div>
-                      </td>
-                      <td className="py-3 pr-3"><Badge>{person.type}</Badge></td>
-                      <td className="py-3 pr-3">{person.stage}</td>
-                      <td className="py-3 pr-3">{person.urgencyScore}</td>
-                      <td className="max-w-[320px] py-3 pr-3">
-                        <div className="font-medium">{optedOut ? "Opted out" : person.nextAction}</div>
-                        <div className="text-xs text-[#5f6a62]">{person.nextActionReason ?? person.aiSummary}</div>
-                      </td>
-                      <td className="py-3 pr-3">{person.nextActionDueAt.toLocaleString()}</td>
-                      <td className="py-3 pr-3">
-                        {["new", "attempting_contact", "nurturing", "appointment_set"].includes(person.stage) ? (
-                          <form action={createDealAction}>
-                            <input type="hidden" name="contactId" value={person.id} />
-                            <input type="hidden" name="name" value={`${person.name} opportunity`} />
-                            <input type="hidden" name="type" value={["buyer", "tenant", "seller", "landlord"].includes(person.type) ? person.type : "buyer"} />
-                            <button className="rounded bg-[#17231d] px-2 py-1 text-xs text-white">Deal</button>
-                          </form>
-                        ) : null}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </Panel>
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <PageHeader title="People" subtitle="Every relationship in one list. If there is no next action, it is broken." />
+        <LeadAddPopover />
       </div>
+      <div className="mb-4 flex flex-wrap gap-2">{filters.map((filter) => <Badge key={filter}>{filter}</Badge>)}</div>
+      <Panel title="Relationships">
+        <div className="divide-y divide-[#edf0ea]">
+          {people.map((person) => {
+            const optedOut = person.consents.some((consent) => consent.status === "opted_out");
+            return (
+              <article key={person.id} className="grid gap-3 py-4 md:grid-cols-[1.4fr_1fr_auto] md:items-center">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link href={`/people/${person.id}`} className="font-medium hover:underline">{person.name}</Link>
+                    <Badge>{person.type}</Badge>
+                    <Badge>{person.stage}</Badge>
+                    {person.urgencyScore >= 75 ? <Badge>{person.urgencyScore}/100</Badge> : null}
+                  </div>
+                  <div className="mt-1 text-xs text-[#5f6a62]">{person.emails[0]?.email ?? person.phones[0]?.phone ?? "No contact info"}</div>
+                </div>
+                <div>
+                  <div className="text-sm font-medium">{optedOut ? "Opted out" : person.nextAction}</div>
+                  <div className="mt-1 text-xs text-[#5f6a62]">
+                    Due {person.nextActionDueAt.toLocaleString()} · {person.nextActionReason ?? person.aiSummary}
+                  </div>
+                </div>
+                <ContactDropdown contactId={person.id} contactName={person.name} contactType={person.type} />
+              </article>
+            );
+          })}
+        </div>
+      </Panel>
     </>
   );
 }
