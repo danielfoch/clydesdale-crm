@@ -29,6 +29,21 @@ export const defaultMotivationQuotes = [
   { source: "Wayne Gretzky", text: "You miss 100 percent of the shots you do not take." },
   { source: "Tim Ferriss", text: "Focus on being productive instead of being busy." },
   { source: "Jocko Willink", text: "Do not count on motivation. Count on discipline." },
+  { source: "Elon Musk", text: "You should take the approach that you are wrong. Your goal is to be less wrong." },
+  { source: "Elon Musk", text: "You get paid in direct proportion to the difficulty of problems you solve." },
+  { source: "Elon Musk", text: "No, I don't ever give up. I'd have to be dead or completely incapacitated." },
+  { source: "Elon Musk", text: "Life needs to be more than just solving problems every day." },
+  { source: "Elon Musk", text: "When something is important enough, you do it even if the odds are not in your favor." },
+  { source: "Elon Musk", text: "If you need motivation, don't do it." },
+  { source: "Elon Musk", text: "Some people don't like change, but you need to embrace change if the alternative is disaster." },
+  { source: "Elon Musk", text: "Persistence is very important. You should not give up unless you are forced to give up." },
+  { source: "Elon Musk", text: "It is OK to have your eggs in one basket as long as you control what happens to that basket." },
+  { source: "Elon Musk", text: "Really pay attention to negative feedback and solicit it, particularly from friends." },
+  { source: "Elon Musk", text: "No task is too menial." },
+  { source: "Elon Musk", text: "Spend your time solving engineering and manufacturing problems." },
+  { source: "Elon Musk", text: "Process becomes a substitute for thinking." },
+  { source: "Elon Musk", text: "It is a mistake to hire huge numbers of people to get a complicated job done." },
+  { source: "Elon Musk", text: "It is very important to like the people you work with." },
   { source: "Mike Puglia", text: "Establishing trust is better than any sales technique." },
   { source: "Mark Twain", text: "The secret of getting ahead is getting started." },
   { source: "r/sales", text: "A goal without a plan is just a wish." },
@@ -64,11 +79,16 @@ export const defaultMotivationQuotes = [
 ];
 
 export async function ensureDefaultMotivationQuotes(workspaceId: string, db: DbClient) {
-  const count = await db.motivationQuote.count({ where: { workspaceId } });
-  if (count > 0) return;
+  const existingQuotes = await db.motivationQuote.findMany({
+    where: { workspaceId, text: { in: defaultMotivationQuotes.map((quote) => quote.text) } },
+    select: { text: true },
+  });
+  const existingTexts = new Set(existingQuotes.map((quote) => quote.text));
+  const missingQuotes = defaultMotivationQuotes.filter((quote) => !existingTexts.has(quote.text));
+  if (!missingQuotes.length) return;
 
   await db.motivationQuote.createMany({
-    data: defaultMotivationQuotes.map((quote) => ({ workspaceId, ...quote })),
+    data: missingQuotes.map((quote) => ({ workspaceId, ...quote })),
     skipDuplicates: true,
   });
 }
