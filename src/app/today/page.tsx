@@ -133,7 +133,7 @@ export default async function TodayPage() {
 
   return (
     <>
-      <PageHeader title="Today" subtitle="One operating list for the day. Open a row menu, create the task, make the touch, move on." />
+      <PageHeader title="Today" subtitle="What should I do now?" />
       <Panel title="Action queue">
         <div className="divide-y divide-[#edf0ea]">
           {newLeads.map((lead) => (

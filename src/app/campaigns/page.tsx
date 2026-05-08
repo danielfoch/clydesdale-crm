@@ -22,7 +22,7 @@ export default async function CampaignsPage() {
 
   return (
     <>
-      <PageHeader title="Campaigns" subtitle="Recipes, sentence workflows, client-for-life plans, and RSS content drafts in one place." />
+      <PageHeader title="Campaigns" subtitle="Who am I warming up at scale?" />
       <div className="grid gap-4 xl:grid-cols-[360px_1fr]">
         <div className="space-y-4">
           <Panel title="Workflow sentence">

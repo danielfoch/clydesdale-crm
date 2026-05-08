@@ -15,7 +15,7 @@ export default async function SettingsPage() {
 
   return (
     <>
-      <PageHeader title="Settings" subtitle="Configuration placeholders are structured for real Gmail, Twilio, AI, and webhook integrations later." />
+      <PageHeader title="Settings" subtitle="How is the system configured?" />
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel title="Workspace">
           <div className="space-y-3 text-sm">

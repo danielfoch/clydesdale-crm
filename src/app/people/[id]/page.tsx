@@ -14,6 +14,7 @@ import {
 } from "@/app/actions";
 import { Badge, Button, inputClass, PageHeader, Panel } from "@/components/ui";
 import { draftMessage } from "@/lib/ai";
+import { contactTypeLabel, stageLabel, titleize } from "@/lib/display";
 import { getPrisma } from "@/lib/prisma";
 import { getDefaultWorkspaceId } from "@/lib/workspace";
 
@@ -65,12 +66,11 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
       <div className="grid gap-4 xl:grid-cols-[300px_1fr_360px]">
         <Panel title="Person">
           <div className="space-y-3 text-sm">
-            <div><span className="text-[#5f6a62]">Stage</span><div><Badge>{contact.stage}</Badge></div></div>
-            <div><span className="text-[#5f6a62]">Intent</span><div><Badge>{contact.type}</Badge></div></div>
+            <div><span className="text-[#5f6a62]">Stage</span><div><Badge>{stageLabel(contact.stage)}</Badge></div></div>
+            <div><span className="text-[#5f6a62]">Intent</span><div><Badge>{contactTypeLabel(contact.type)}</Badge></div></div>
             <div><span className="text-[#5f6a62]">Email</span><div>{contact.emails[0]?.email ?? "None"}</div></div>
             <div><span className="text-[#5f6a62]">Phone</span><div>{contact.phones[0]?.phone ?? "None"}</div></div>
-            <div><span className="text-[#5f6a62]">Tags</span><div className="mt-1 flex flex-wrap gap-2">{contact.tags.map((tag) => <Badge key={tag.id}>{tag.tag}</Badge>)}</div></div>
-            <div><span className="text-[#5f6a62]">Consent</span><div className="mt-1 flex flex-wrap gap-2">{contact.consents.map((consent) => <Badge key={consent.id}>{consent.channel}: {consent.status}</Badge>)}</div></div>
+            <div><span className="text-[#5f6a62]">Consent</span><div className="mt-1 flex flex-wrap gap-2">{contact.consents.map((consent) => <Badge key={consent.id}>{titleize(consent.channel)}: {titleize(consent.status)}</Badge>)}</div></div>
           </div>
         </Panel>
         <Panel title="Timeline">

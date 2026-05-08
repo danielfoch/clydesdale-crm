@@ -83,12 +83,15 @@ export async function draftMessage(contact: { name: string; type?: string | null
 }
 
 export async function summarizeContact(contact: { name: string; stage?: string | null; type?: string | null }) {
-  return `${contact.name} is a ${contact.type ?? "unknown"} contact currently in ${contact.stage ?? "new"} stage. Keep the next action simple and timely.`;
+  return `${contact.name} is a ${contactTypeLabel(contact.type).toLowerCase()} currently in ${stageLabel(contact.stage)}. Keep the next action simple and timely.`;
 }
 
 export async function suggestNextAction(contact: { name: string; stage?: string | null; type?: string | null }) {
   if (contact.stage === "past_client") return `Send ${contact.name} a quarterly check-in and offer an updated home valuation.`;
   if (contact.stage === "new") return `Call ${contact.name}, then send the drafted first response if there is no answer.`;
+  if (contact.stage === "nurturing") return `Keep ${contact.name}'s conversation moving and identify whether they need listings, a CMA, or a market update.`;
+  if (contact.stage === "appointment_set") return `Set or confirm ${contact.name}'s appointment and move them toward becoming a client.`;
+  if (contact.stage === "active_client") return `Move ${contact.name} into Deals so client work is tracked clearly.`;
   return `Confirm ${contact.name}'s timeline, motivation, and next appointment.`;
 }
 
@@ -102,10 +105,11 @@ export async function draftNewsletter(contentPost: { title: string; excerpt?: st
 }
 
 export async function suggestDealNextStep(deal: { name: string; stage?: string | null; type?: string | null }) {
-  return `Move ${deal.name} forward by confirming the next ${deal.type ?? "deal"} milestone for ${deal.stage ?? "current"} stage.`;
+  return `Move ${deal.name} forward by confirming the next ${contactTypeLabel(deal.type).toLowerCase()} milestone in ${stageLabel(deal.stage)}.`;
 }
 
 export async function generateClientForLifeCheckin(contact: { name: string }) {
   const firstName = contact.name.split(" ")[0] || "there";
   return `Hi ${firstName}, just checking in for your quarterly home update. Would you like a fresh valuation and a quick read on what has changed nearby?`;
 }
+import { contactTypeLabel, stageLabel } from "./display";

@@ -3,7 +3,7 @@ import { Bot, BriefcaseBusiness, CalendarCheck, Settings, UsersRound, Megaphone 
 
 const navItems = [
   { href: "/today", label: "Today", icon: CalendarCheck },
-  { href: "/people", label: "People", icon: UsersRound },
+  { href: "/pipeline", label: "Pipeline", icon: UsersRound },
   { href: "/deals", label: "Deals", icon: BriefcaseBusiness },
   { href: "/campaigns", label: "Campaigns", icon: Megaphone },
   { href: "/settings", label: "Settings", icon: Settings },
