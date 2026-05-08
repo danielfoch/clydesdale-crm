@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { ChevronDown, ChevronRight, GripVertical } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronRight, GripVertical, Mail, MessageSquareText, Phone, Timer, UserRound } from "lucide-react";
 import {
   assignDealAction,
   closeDealAction,
@@ -14,14 +14,13 @@ import {
   snoozeDealAction,
   updateDealPipelineStageAction,
 } from "@/app/actions";
-import { Button, inputClass, Panel } from "@/components/ui";
+import { inputClass, Panel } from "@/components/ui";
 import {
-  contactTypeBadgeClass,
   contactTypeLabel,
   dealPipelineStages,
   formatDue,
+  formatDueDelta,
   stageLabel,
-  urgencyBadgeClass,
   urgencyLabel,
 } from "@/lib/display";
 
@@ -56,11 +55,23 @@ export type BoardDeal = {
 };
 
 function SecondaryButton({ children }: { children: React.ReactNode }) {
-  return <button className="rounded border border-[#cfd6ca] px-3 py-2 text-sm hover:bg-[#f5f7f2]">{children}</button>;
+  return <button className="rounded border border-[#cfd6ca] px-2.5 py-1.5 text-xs hover:bg-[#f5f7f2]">{children}</button>;
 }
 
-function BadgePill({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <span className={`rounded px-2 py-1 text-xs font-medium ${className}`}>{children}</span>;
+function IconChip({
+  label,
+  children,
+  className = "",
+}: {
+  label: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <span title={label} aria-label={label} className={`inline-flex h-5 min-w-6 items-center justify-center rounded px-1 text-[10px] font-bold leading-none transition hover:scale-105 ${className}`}>
+      {children}
+    </span>
+  );
 }
 
 function cardColorClass(type: string) {
@@ -106,6 +117,24 @@ function stageFormData(dealId: string, stage: string) {
   return formData;
 }
 
+function urgencyClass(score: number) {
+  if (score >= 75) return "bg-[#fef3c7] text-[#78350f]";
+  if (score >= 40) return "bg-[#e0f2fe] text-[#075985]";
+  return "bg-[#ecfdf5] text-[#166534]";
+}
+
+function urgencyShort(score: number) {
+  if (score >= 75) return "H";
+  if (score >= 40) return "M";
+  return "L";
+}
+
+function dueClass(value: string) {
+  if (value.startsWith("-")) return "bg-[#fee2e2] text-[#7f1d1d]";
+  if (value === "0d") return "bg-[#fef3c7] text-[#78350f]";
+  return "bg-[#eef2ea] text-[#46534b]";
+}
+
 function MoveDealButtons({ dealId, currentStage }: { dealId: string; currentStage: string }) {
   return (
     <div className="flex flex-wrap gap-2">
@@ -139,10 +168,12 @@ function DealCard({
 }) {
   const contact = deal.primaryContact ?? deal.contact;
   const contactInfo = contact?.email ?? contact?.phone ?? "No contact info";
-  const openTasks = deal.tasks.filter((task) => task.status === "open").slice(0, 3);
+  const openTasks = deal.tasks.filter((task) => task.status === "open").slice(0, 2);
   const urgencyScore = deal.riskLevel === "high" || deal.riskLevel === "stalled" ? 82 : 48;
   const value = deal.valueCents ? `$${(deal.valueCents / 100).toLocaleString()}` : "Not set";
-  const dueAt = new Date(deal.nextActionDueAt);
+  const dueDelta = formatDueDelta(deal.nextActionDueAt);
+  const dueTitle = `Due: ${formatDue(new Date(deal.nextActionDueAt))}`;
+  const typeLabel = contactTypeLabel(deal.type);
 
   return (
     <article
@@ -151,41 +182,45 @@ function DealCard({
         event.dataTransfer.setData("text/plain", deal.id);
         event.dataTransfer.effectAllowed = "move";
       }}
-      className={`rounded-md border border-l-4 border-[#e1e6dc] p-3 shadow-sm transition hover:-translate-y-px hover:shadow-md ${cardColorClass(deal.type)}`}
+      title={typeLabel}
+      className={`group rounded-md border border-l-4 border-[#e1e6dc] p-2 shadow-sm transition hover:-translate-y-px hover:shadow-md ${cardColorClass(deal.type)}`}
     >
-      <div className="flex items-start gap-2">
-        <GripVertical className="mt-0.5 shrink-0 text-[#a0a99f]" size={14} aria-hidden />
+      <div className="flex items-start gap-1.5">
+        <GripVertical className="mt-0.5 shrink-0 text-[#a0a99f]" size={12} aria-hidden />
         <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start justify-between gap-1.5">
             <div className="min-w-0">
-              <div className="truncate font-medium">{contact?.name ?? deal.name}</div>
-              <div className="mt-1 truncate text-xs text-[#68736a]">{deal.propertyAddress ?? deal.name}</div>
+              <div className="flex min-w-0 items-center gap-1.5">
+                <div className="truncate text-xs font-semibold">{contact?.name ?? deal.name}</div>
+                <IconChip label={dueTitle} className={dueClass(dueDelta)}>
+                  {dueDelta}
+                </IconChip>
+                <IconChip label={`Urgency: ${urgencyLabel(urgencyScore)} (${urgencyScore}/100)`} className={urgencyClass(urgencyScore)}>
+                  {urgencyShort(urgencyScore)}
+                </IconChip>
+              </div>
+              <div className="mt-0.5 truncate text-[10px] text-[#68736a]" title={`${typeLabel} · ${deal.propertyAddress ?? deal.name}`}>
+                {typeLabel} · {deal.propertyAddress ?? deal.name}
+              </div>
             </div>
             <button
               type="button"
               onClick={onToggle}
               aria-expanded={expanded}
               aria-label={expanded ? `Collapse ${deal.name}` : `Expand ${deal.name}`}
-              className="grid size-7 shrink-0 place-items-center rounded border border-[#d9ded5] text-[#46534b] hover:bg-[#f5f7f2]"
+              className="grid size-6 shrink-0 place-items-center rounded border border-[#d9ded5] bg-white/70 text-[#46534b] hover:bg-white"
             >
-              {expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+              {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
             </button>
           </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <BadgePill className={contactTypeBadgeClass(deal.type)}>{contactTypeLabel(deal.type)}</BadgePill>
-            <BadgePill className="bg-[#e9efe6] text-[#304037]">{stageLabel(deal.stage)}</BadgePill>
-            <BadgePill className={urgencyBadgeClass(urgencyScore)}>{urgencyLabel(urgencyScore)}</BadgePill>
-            <BadgePill className={dueAt < new Date() ? "bg-[#fee2e2] text-[#7f1d1d]" : "bg-[#eef2ea] text-[#46534b]"}>
-              {formatDue(dueAt)}
-            </BadgePill>
-          </div>
-          <p className="mt-3 line-clamp-2 text-sm text-[#26352c]">{deal.nextAction}</p>
+
+          <p className="mt-1.5 line-clamp-2 text-[11px] leading-4 text-[#26352c]">{deal.nextAction}</p>
         </div>
       </div>
 
       {expanded ? (
-        <div className="mt-3 space-y-4 border-t border-[#edf0ea] pt-3">
-          <div className="grid gap-2 rounded bg-[#f6f7f4] p-3 text-sm text-[#5f6a62]">
+        <div className="mt-2.5 space-y-2.5 border-t border-[#edf0ea] pt-2.5">
+          <div className="grid gap-1 rounded bg-white/70 p-2 text-xs text-[#5f6a62]">
             <div><span className="font-medium text-[#17231d]">Client:</span> {contact ? <Link href={`/people/${contact.id}`} className="hover:underline">{contact.name}</Link> : "No linked contact"}</div>
             <div><span className="font-medium text-[#17231d]">Contact:</span> {contactInfo}</div>
             <div><span className="font-medium text-[#17231d]">Stage:</span> {stageLabel(deal.stage)}</div>
@@ -195,13 +230,14 @@ function DealCard({
           </div>
 
           {openTasks.length ? (
-            <div className="space-y-2">
-              <div className="text-xs font-semibold uppercase tracking-normal text-[#68736a]">Open tasks</div>
+            <div className="space-y-1.5">
               {openTasks.map((task) => (
                 <form key={task.id} action={markTaskDoneAction} className="flex items-center justify-between gap-2 rounded border border-[#e4e8df] p-2">
                   <input type="hidden" name="taskId" value={task.id} />
-                  <span className="text-sm">{task.title}</span>
-                  <button className="rounded bg-[#dcfce7] px-2 py-1 text-xs font-medium text-[#14532d]">Done</button>
+                  <span className="line-clamp-1 text-xs">{task.title}</span>
+                  <button aria-label={`Mark ${task.title} done`} className="grid size-7 place-items-center rounded bg-[#dcfce7] text-[#14532d]">
+                    <CheckCircle2 size={14} />
+                  </button>
                 </form>
               ))}
             </div>
@@ -212,41 +248,51 @@ function DealCard({
             <MoveDealButtons dealId={deal.id} currentStage={deal.stage} />
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             <form action={logCallAction}>
               <input type="hidden" name="dealId" value={deal.id} />
               <input type="hidden" name="body" value="Deal call started from Deals board." />
-              <Button>Call</Button>
+              <button className="grid size-8 place-items-center rounded bg-[#17231d] text-white hover:bg-[#26382f]" title="Call" aria-label="Call">
+                <Phone size={14} />
+              </button>
             </form>
             <form action={snoozeDealAction}>
               <input type="hidden" name="dealId" value={deal.id} />
               <input type="hidden" name="hours" value="24" />
-              <SecondaryButton>Snooze</SecondaryButton>
+              <button className="grid size-8 place-items-center rounded border border-[#cfd6ca] hover:bg-[#f5f7f2]" title="Snooze" aria-label="Snooze">
+                <Timer size={14} />
+              </button>
             </form>
             <form action={assignDealAction}>
               <input type="hidden" name="dealId" value={deal.id} />
-              <SecondaryButton>Assign</SecondaryButton>
+              <button className="grid size-8 place-items-center rounded border border-[#cfd6ca] hover:bg-[#f5f7f2]" title="Assign" aria-label="Assign">
+                <UserRound size={14} />
+              </button>
             </form>
             <form action={closeDealAction}>
               <input type="hidden" name="dealId" value={deal.id} />
-              <Button>Close Deal</Button>
+              <SecondaryButton>Close</SecondaryButton>
             </form>
           </div>
 
           {contact ? (
             <>
-              <form action={sendContactMessageAction} className="space-y-2">
+              <form action={sendContactMessageAction} className="space-y-1.5">
                 <input type="hidden" name="contactId" value={contact.id} />
                 <input type="hidden" name="channel" value="sms" />
-                <textarea name="body" className={inputClass} placeholder="Text message" rows={3} required />
-                <Button>Send Text</Button>
+                <textarea name="body" className={inputClass} placeholder="Text message" rows={2} required />
+                <button className="inline-flex items-center gap-1.5 rounded bg-[#17231d] px-2.5 py-1.5 text-xs font-medium text-white hover:bg-[#26382f]">
+                  <MessageSquareText size={13} /> Text
+                </button>
               </form>
-              <form action={draftContactMessageAction} className="space-y-2">
+              <form action={draftContactMessageAction} className="space-y-1.5">
                 <input type="hidden" name="contactId" value={contact.id} />
                 <input type="hidden" name="channel" value="email" />
                 <input name="subject" className={inputClass} defaultValue="Quick deal update" />
-                <textarea name="body" className={inputClass} placeholder="Email draft" rows={3} required />
-                <Button>Draft Email</Button>
+                <textarea name="body" className={inputClass} placeholder="Email draft" rows={2} required />
+                <button className="inline-flex items-center gap-1.5 rounded border border-[#cfd6ca] px-2.5 py-1.5 text-xs font-medium hover:bg-[#f5f7f2]">
+                  <Mail size={13} /> Email
+                </button>
               </form>
             </>
           ) : null}
@@ -276,7 +322,7 @@ export function DealsBoard({ deals }: { deals: BoardDeal[] }) {
     <>
       <DealColorLegend />
       <div className="overflow-x-auto pb-2">
-        <div className="grid min-w-[1120px] grid-cols-4 gap-4">
+        <div className="grid min-w-[980px] grid-cols-4 gap-3">
           {dealPipelineStages.map((stage) => {
             const cards = deals.filter((deal) => stage.dealStages.includes(deal.stage as never));
             const isOver = overStage === stage.key;
@@ -297,8 +343,8 @@ export function DealsBoard({ deals }: { deals: BoardDeal[] }) {
                 className={isOver ? "rounded-md ring-2 ring-[#17231d]/25" : "rounded-md"}
               >
                 <Panel title={`${stage.label} · ${cards.length}`}>
-                  <p className="mb-3 min-h-10 text-xs text-[#68736a]">{stage.description}</p>
-                  <div className={`space-y-3 rounded-md transition ${isOver ? "bg-[#edf1e9] p-1.5" : ""}`}>
+                  <p className="mb-2 min-h-8 text-[11px] leading-4 text-[#68736a]">{stage.description}</p>
+                  <div className={`space-y-2 rounded-md transition ${isOver ? "bg-[#edf1e9] p-1.5" : ""}`}>
                     {cards.length ? cards.map((deal) => (
                       <div key={deal.id} onDragStart={() => setDraggingId(deal.id)} onDragEnd={() => { setDraggingId(null); setOverStage(null); }}>
                         <DealCard
