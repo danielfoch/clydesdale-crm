@@ -24,6 +24,7 @@ import {
   sendContactMessageAction,
   snoozeContactAction,
   uncompleteLoopChecklistItemAction,
+  updateContactDealValueAction,
   updateContactPipelineStageAction,
 } from "@/app/actions";
 import { inputClass, Panel } from "@/components/ui";
@@ -36,6 +37,7 @@ import {
   urgencyLabel,
 } from "@/lib/display";
 import { getPipelineLoopItems, loopTaskType } from "@/lib/loop-checklists";
+import { centsToDollarInput, formatRevenue } from "@/lib/revenue-estimates";
 
 type PipelineTask = {
   id: string;
@@ -52,6 +54,7 @@ export type PipelinePerson = {
   stage: string;
   type: string;
   urgencyScore: number;
+  estimatedDealValueCents: number;
   aiSummary: string | null;
   suggestedFirstResponse: string | null;
   source: string | null;
@@ -218,6 +221,7 @@ function ContactCard({
     person.tasks.some((task) => task.type === loopTaskType("pipeline", person.stage, item.key) && task.status === "done"),
   ).length;
   const dealType = ["buyer", "tenant", "seller", "landlord"].includes(person.type) ? person.type : "buyer";
+  const dealValue = person.estimatedDealValueCents ? formatRevenue(person.estimatedDealValueCents) : "No value";
   const dueDelta = formatDueDelta(person.nextActionDueAt);
   const dueTitle = `Due: ${formatDue(new Date(person.nextActionDueAt))}`;
   const lastTouch = person.lastTouchAt ? formatDueDelta(person.lastTouchAt) : "none";
@@ -251,6 +255,11 @@ function ContactCard({
                 <IconChip label={`Stage progress: ${completedLoopCount}/${loopItems.length}`} className="bg-[#e9efe6] text-[#304037]">
                   {completedLoopCount}/{loopItems.length}
                 </IconChip>
+                {person.estimatedDealValueCents ? (
+                  <IconChip label={`Estimated deal value: ${dealValue}`} className="bg-white text-[#304037] ring-1 ring-[#d9ded5]">
+                    {dealValue}
+                  </IconChip>
+                ) : null}
               </div>
               <div className="mt-0.5 truncate text-[10px] text-[#68736a]" title={`${typeLabel} · ${primaryContact}`}>{typeLabel} · {primaryContact}</div>
             </div>
@@ -276,8 +285,31 @@ function ContactCard({
             <div><span className="font-medium text-[#17231d]">Source:</span> {person.source ?? "Unknown"}</div>
             <div><span className="font-medium text-[#17231d]">Last touch:</span> {lastTouch}</div>
             <div><span className="font-medium text-[#17231d]">Why:</span> {person.nextActionReason ?? "Next best action"}</div>
+            <div><span className="font-medium text-[#17231d]">Deal value:</span> {dealValue}</div>
             <div><span className="font-medium text-[#17231d]">Notes:</span> {latestNote}</div>
           </div>
+
+          <form action={updateContactDealValueAction} className="grid gap-1.5 rounded bg-white/70 p-2">
+            <input type="hidden" name="contactId" value={person.id} />
+            <label className="text-[10px] font-semibold uppercase tracking-normal text-[#68736a]" htmlFor={`contact-value-${person.id}`}>
+              Deal value
+            </label>
+            <div className="flex gap-1.5">
+              <input
+                id={`contact-value-${person.id}`}
+                name="valueDollars"
+                type="number"
+                min="0"
+                step="1000"
+                className={inputClass}
+                defaultValue={centsToDollarInput(person.estimatedDealValueCents)}
+                placeholder="750000"
+              />
+              <button className="shrink-0 rounded bg-[#17231d] px-2.5 py-1.5 text-xs font-medium text-white hover:bg-[#26382f]">
+                Save
+              </button>
+            </div>
+          </form>
 
           {openTasks.length ? (
             <div className="space-y-1.5">
@@ -346,6 +378,7 @@ function ContactCard({
               <input type="hidden" name="name" value={`${person.name} client work`} />
               <input type="hidden" name="type" value={dealType} />
               <input type="hidden" name="stage" value="met_with_client" />
+              <input type="hidden" name="valueCents" value={person.estimatedDealValueCents} />
               <input type="hidden" name="nextAction" value="Confirm client criteria and deal plan" />
               <SecondaryButton>Convert</SecondaryButton>
             </form>

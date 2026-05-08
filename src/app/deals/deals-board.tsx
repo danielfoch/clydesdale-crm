@@ -15,6 +15,7 @@ import {
   snoozeDealAction,
   uncompleteLoopChecklistItemAction,
   updateDealPipelineStageAction,
+  updateDealValueAction,
 } from "@/app/actions";
 import { inputClass, Panel } from "@/components/ui";
 import {
@@ -26,6 +27,7 @@ import {
   urgencyLabel,
 } from "@/lib/display";
 import { getDealLoopItems, loopTaskType } from "@/lib/loop-checklists";
+import { centsToDollarInput, formatRevenue } from "@/lib/revenue-estimates";
 
 type DealTask = {
   id: string;
@@ -214,7 +216,7 @@ function DealCard({
   ).length;
   const urgencyScore = deal.riskLevel === "high" || deal.riskLevel === "stalled" ? 82 : 48;
   const clientScore = contact?.urgencyScore ?? urgencyScore;
-  const value = deal.valueCents ? `$${(deal.valueCents / 100).toLocaleString()}` : "Not set";
+  const value = deal.valueCents ? formatRevenue(deal.valueCents) : "Not set";
   const dueDelta = formatDueDelta(deal.nextActionDueAt);
   const dueTitle = `Due: ${formatDue(new Date(deal.nextActionDueAt))}`;
   const typeLabel = contactTypeLabel(deal.type);
@@ -245,6 +247,11 @@ function DealCard({
                 <IconChip label={`Stage progress: ${completedLoopCount}/${loopItems.length}`} className="bg-[#e9efe6] text-[#304037]">
                   {completedLoopCount}/{loopItems.length}
                 </IconChip>
+                {deal.valueCents ? (
+                  <IconChip label={`Deal value: ${value}`} className="bg-white text-[#304037] ring-1 ring-[#d9ded5]">
+                    {value}
+                  </IconChip>
+                ) : null}
               </div>
               <div className="mt-0.5 truncate text-[10px] text-[#68736a]" title={`${typeLabel} · ${deal.propertyAddress ?? deal.name}`}>
                 {typeLabel} · {deal.propertyAddress ?? deal.name}
@@ -275,6 +282,28 @@ function DealCard({
             <div><span className="font-medium text-[#17231d]">Notes:</span> {deal.notes ?? "No notes yet."}</div>
             <div><span className="font-medium text-[#17231d]">Missing items:</span> {openTasks.length ? openTasks.map((task) => task.title).join(", ") : "None logged."}</div>
           </div>
+
+          <form action={updateDealValueAction} className="grid gap-1.5 rounded bg-white/70 p-2">
+            <input type="hidden" name="dealId" value={deal.id} />
+            <label className="text-[10px] font-semibold uppercase tracking-normal text-[#68736a]" htmlFor={`deal-value-${deal.id}`}>
+              Deal value
+            </label>
+            <div className="flex gap-1.5">
+              <input
+                id={`deal-value-${deal.id}`}
+                name="valueDollars"
+                type="number"
+                min="0"
+                step="1000"
+                className={inputClass}
+                defaultValue={centsToDollarInput(deal.valueCents)}
+                placeholder="750000"
+              />
+              <button className="shrink-0 rounded bg-[#17231d] px-2.5 py-1.5 text-xs font-medium text-white hover:bg-[#26382f]">
+                Save
+              </button>
+            </div>
+          </form>
 
           {openTasks.length ? (
             <div className="space-y-1.5">

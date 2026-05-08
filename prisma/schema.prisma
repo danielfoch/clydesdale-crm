@@ -108,43 +108,44 @@ model WorkspaceMember {
 }
 
 model Contact {
-  id                     String                 @id @default(cuid())
-  workspaceId            String
-  ownerId                String?
-  name                   String
-  stage                  ContactStage           @default(new)
-  type                   ContactType            @default(unknown)
-  urgencyScore           Int                    @default(0)
-  aiSummary              String?
-  aiSuggestedAction      String?
-  suggestedFirstResponse String?
-  source                 String?
-  lastTouchAt            DateTime?
-  lastReplyAt            DateTime?
-  nextAction             String
-  nextActionType         String                 @default("follow_up")
-  nextActionDueAt        DateTime
-  nextActionReason       String?
-  nextActionConfidence   Int                    @default(75)
-  createdAt              DateTime               @default(now())
-  updatedAt              DateTime               @updatedAt
-  workspace              Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  owner                  User?                  @relation("ContactOwner", fields: [ownerId], references: [id])
-  emails                 ContactEmail[]
-  phones                 ContactPhone[]
-  tags                   ContactTag[]
-  notes                  ContactNote[]
-  consents               ContactConsent[]
-  leadEvents             LeadEvent[]
-  threads                MessageThread[]
-  messages               Message[]
-  tasks                  Task[]
-  campaignEnrollments    CampaignEnrollment[]
-  primaryDeals           Deal[]                 @relation("DealPrimaryContact")
-  dealParticipants       DealParticipant[]
-  lifecycleEvents        ClientLifecycleEvent[]
-  valuationRequests      HomeValuationRequest[]
-  recommendedActions     RecommendedAction[]
+  id                      String                 @id @default(cuid())
+  workspaceId             String
+  ownerId                 String?
+  name                    String
+  stage                   ContactStage           @default(new)
+  type                    ContactType            @default(unknown)
+  urgencyScore            Int                    @default(0)
+  estimatedDealValueCents Int                    @default(0)
+  aiSummary               String?
+  aiSuggestedAction       String?
+  suggestedFirstResponse  String?
+  source                  String?
+  lastTouchAt             DateTime?
+  lastReplyAt             DateTime?
+  nextAction              String
+  nextActionType          String                 @default("follow_up")
+  nextActionDueAt         DateTime
+  nextActionReason        String?
+  nextActionConfidence    Int                    @default(75)
+  createdAt               DateTime               @default(now())
+  updatedAt               DateTime               @updatedAt
+  workspace               Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  owner                   User?                  @relation("ContactOwner", fields: [ownerId], references: [id])
+  emails                  ContactEmail[]
+  phones                  ContactPhone[]
+  tags                    ContactTag[]
+  notes                   ContactNote[]
+  consents                ContactConsent[]
+  leadEvents              LeadEvent[]
+  threads                 MessageThread[]
+  messages                Message[]
+  tasks                   Task[]
+  campaignEnrollments     CampaignEnrollment[]
+  primaryDeals            Deal[]                 @relation("DealPrimaryContact")
+  dealParticipants        DealParticipant[]
+  lifecycleEvents         ClientLifecycleEvent[]
+  valuationRequests       HomeValuationRequest[]
+  recommendedActions      RecommendedAction[]
 
   @@index([workspaceId, stage])
   @@index([workspaceId, type])
@@ -333,18 +334,18 @@ model CampaignStep {
 }
 
 model CampaignEnrollment {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   campaignId  String
   contactId   String
-  status      String   @default("active")
-  currentStep Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  status      String    @default("active")
+  currentStep Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   pausedAt    DateTime?
   completedAt DateTime?
   exitedAt    DateTime?
-  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  contact     Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  campaign    Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact     Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
 
   @@unique([campaignId, contactId])
   @@map("campaign_enrollments")

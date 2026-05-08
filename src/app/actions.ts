@@ -26,6 +26,13 @@ function optionalString(formData: FormData, key: string) {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
+function dollarInputToCents(formData: FormData, key: string) {
+  const raw = optionalString(formData, key) ?? "0";
+  const value = Number(raw.replace(/[$,]/g, ""));
+  if (!Number.isFinite(value) || value < 0) throw new Error(`${key} must be a positive dollar value`);
+  return Math.round(value * 100);
+}
+
 async function getDefaultOwnerId(workspaceId: string) {
   const db = getPrisma();
   const member = await db.workspaceMember.findFirst({
@@ -112,13 +119,18 @@ export async function createDealAction(formData: FormData) {
   const workspaceId = await getDefaultWorkspaceId();
   const contactId = requiredString(formData, "contactId");
   const stage = formData.get("stage")?.toString() || "met_with_client";
+  const contact = await db.contact.findUnique({
+    where: { id: contactId },
+    select: { estimatedDealValueCents: true },
+  });
+  const submittedValue = Number(formData.get("valueCents") ?? 0);
   const deal = await db.deal.create({
     data: {
       workspaceId,
       type: requiredString(formData, "type") as never,
       name: requiredString(formData, "name"),
       stage,
-      valueCents: Number(formData.get("valueCents") ?? 0),
+      valueCents: submittedValue || contact?.estimatedDealValueCents || 0,
       primaryContactId: contactId,
       nextAction: formData.get("nextAction")?.toString() || "Confirm client update and next milestone",
       nextActionDueAt: formData.get("nextActionDueAt") ? new Date(requiredString(formData, "nextActionDueAt")) : new Date(Date.now() + 24 * 60 * 60 * 1000),
@@ -142,6 +154,29 @@ export async function createDealAction(formData: FormData) {
   revalidatePath("/contacts");
   revalidatePath("/pipeline");
   revalidatePath("/deals");
+  revalidatePath(`/people/${contactId}`);
+}
+
+export async function updateContactDealValueAction(formData: FormData) {
+  const db = getPrisma();
+  const workspaceId = await getDefaultWorkspaceId();
+  const contactId = requiredString(formData, "contactId");
+  const estimatedDealValueCents = dollarInputToCents(formData, "valueDollars");
+  await db.contact.update({
+    where: { id: contactId },
+    data: { estimatedDealValueCents },
+  });
+  await writeAudit({
+    workspaceId,
+    actorType: "user",
+    action: "contact.deal_value_updated",
+    targetType: "contact",
+    targetId: contactId,
+    metadata: { estimatedDealValueCents },
+  }, db);
+  revalidatePath("/today");
+  revalidatePath("/contacts");
+  revalidatePath("/pipeline");
   revalidatePath(`/people/${contactId}`);
 }
 
@@ -787,6 +822,7 @@ export async function updateContactPipelineStageAction(formData: FormData) {
         primaryContactId: contact.id,
         name: `${contact.name} client work`,
         stage: "met_with_client",
+        valueCents: contact.estimatedDealValueCents,
         nextAction: "Confirm client criteria and deal plan",
         nextActionDueAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
         participants: { create: { contactId: contact.id, role: "client" } },
@@ -872,6 +908,32 @@ export async function updateDealPipelineStageAction(formData: FormData) {
   await writeAudit({ workspaceId, actorType: "user", action: "deal.pipeline_stage_changed", targetType: "deal", targetId: dealId, metadata: { stage } }, db);
   revalidatePath("/deals");
   revalidatePath("/today");
+}
+
+export async function updateDealValueAction(formData: FormData) {
+  const db = getPrisma();
+  const workspaceId = await getDefaultWorkspaceId();
+  const dealId = requiredString(formData, "dealId");
+  const valueCents = dollarInputToCents(formData, "valueDollars");
+  const deal = await db.deal.update({
+    where: { id: dealId },
+    data: { valueCents },
+    select: { id: true, primaryContactId: true },
+  });
+  await writeAudit({
+    workspaceId,
+    actorType: "user",
+    action: "deal.value_updated",
+    targetType: "deal",
+    targetId: deal.id,
+    metadata: { valueCents },
+  }, db);
+  revalidatePath("/today");
+  revalidatePath("/deals");
+  if (deal.primaryContactId) {
+    revalidatePath("/contacts");
+    revalidatePath(`/people/${deal.primaryContactId}`);
+  }
 }
 
 export async function completeLifecycleTouchAction(formData: FormData) {

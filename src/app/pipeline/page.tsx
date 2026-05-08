@@ -53,6 +53,7 @@ async function getPipelineContacts(): Promise<PipelinePerson[]> {
     stage: person.stage,
     type: person.type,
     urgencyScore: person.urgencyScore,
+    estimatedDealValueCents: person.estimatedDealValueCents,
     aiSummary: person.aiSummary,
     suggestedFirstResponse: person.suggestedFirstResponse,
     source: person.source,

@@ -26,6 +26,23 @@ const newLeadRows = [
   ["Chloe Davis", "chloe@example.com", "+15555555559", "meta", "Can someone call me about a valuation?"],
 ] as const;
 
+function estimatedDealValueForType(type: string) {
+  switch (type) {
+    case "seller":
+      return 95000000;
+    case "buyer":
+      return 85000000;
+    case "landlord":
+      return 4800000;
+    case "tenant":
+      return 3600000;
+    case "investor":
+      return 65000000;
+    default:
+      return 0;
+  }
+}
+
 async function clear() {
   await prisma.auditLog.deleteMany();
   await prisma.agentCommand.deleteMany();
@@ -147,6 +164,7 @@ async function main() {
           type,
           stage,
           source: "manual",
+          estimatedDealValueCents: estimatedDealValueForType(type),
           urgencyScore: stage === "attempting_contact" ? 78 : 45,
           aiSummary: `${summary} Context: ${context}.`,
           aiSuggestedAction: nextAction,
@@ -176,6 +194,7 @@ async function main() {
         type: classification.contactType,
         stage: classification.suggestedStage,
         source,
+        estimatedDealValueCents: estimatedDealValueForType(classification.contactType),
         urgencyScore: classification.urgencyScore,
         aiSummary: classification.summary,
         aiSuggestedAction: classification.urgencyScore >= 75 ? "Call within 5 minutes" : "Send first response today",
