@@ -19,6 +19,11 @@ function escapeXml(value: string) {
   return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 }
 
+function providerErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message.slice(0, 500);
+  return "Unknown provider error";
+}
+
 async function sendTwilioSms(to: string, body: string) {
   const twilio = (await import("twilio")).default;
   const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
@@ -143,33 +148,60 @@ export async function approveAndSendMessage(messageId: string, db: DbClient = ge
   }
 
   if (message.channel === "sms" && hasTwilioSmsConfig() && message.contact.phones[0]?.phone) {
-    const sent = await sendTwilioSms(message.contact.phones[0].phone, message.body);
-    const updated = await db.message.update({
-      where: { id: messageId },
-      data: {
-        approvedByUser: true,
-        status: "sent",
-        sentAt: new Date(),
-        metadata: {
-          provider: "twilio",
-          twilioSid: sent.sid,
-          twilioStatus: sent.status,
+    try {
+      const sent = await sendTwilioSms(message.contact.phones[0].phone, message.body);
+      const updated = await db.message.update({
+        where: { id: messageId },
+        data: {
+          approvedByUser: true,
+          status: "sent",
+          sentAt: new Date(),
+          metadata: {
+            provider: "twilio",
+            twilioSid: sent.sid,
+            twilioStatus: sent.status,
+          },
         },
-      },
-    });
+      });
 
-    await writeAudit(
-      {
-        workspaceId: message.workspaceId,
-        actorType: "user",
-        action: "message.sent_twilio",
-        targetType: "message",
-        targetId: message.id,
-        metadata: { channel: message.channel, contactId: message.contactId, twilioSid: sent.sid },
-      },
-      db,
-    );
-    return updated;
+      await writeAudit(
+        {
+          workspaceId: message.workspaceId,
+          actorType: "user",
+          action: "message.sent_twilio",
+          targetType: "message",
+          targetId: message.id,
+          metadata: { channel: message.channel, contactId: message.contactId, twilioSid: sent.sid },
+        },
+        db,
+      );
+      return updated;
+    } catch (error) {
+      const updated = await db.message.update({
+        where: { id: messageId },
+        data: {
+          approvedByUser: true,
+          status: "failed_twilio",
+          metadata: {
+            provider: "twilio",
+            error: providerErrorMessage(error),
+          },
+        },
+      });
+
+      await writeAudit(
+        {
+          workspaceId: message.workspaceId,
+          actorType: "user",
+          action: "message.failed_twilio",
+          targetType: "message",
+          targetId: message.id,
+          metadata: { channel: message.channel, contactId: message.contactId, error: providerErrorMessage(error) },
+        },
+        db,
+      );
+      return updated;
+    }
   }
 
   const updated = await db.message.update({

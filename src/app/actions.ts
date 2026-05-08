@@ -896,7 +896,7 @@ export async function sendContactMessageAction(formData: FormData) {
       nextAction: "Wait for reply; follow up if no response",
       nextActionType: "task",
       nextActionDueAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      nextActionReason: sent.status === "sent" ? "Message sent from contact profile" : "Message logged from contact profile",
+      nextActionReason: sent.status === "failed_twilio" ? "Text failed in Twilio; review provider settings" : sent.status === "sent" ? "Message sent from contact profile" : "Message logged from contact profile",
     },
   });
   await writeAudit({ workspaceId, actorType: "user", action: "message.manual_sent", targetType: "message", targetId: sent.id }, db);
@@ -919,7 +919,7 @@ export async function approveDraftAction(formData: FormData) {
         nextAction: "Wait for reply; follow up if no response",
         nextActionType: "task",
         nextActionDueAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        nextActionReason: "Approved message sent",
+        nextActionReason: message.status === "failed_twilio" ? "Text failed in Twilio; review provider settings" : "Approved message sent",
       },
     });
   }
