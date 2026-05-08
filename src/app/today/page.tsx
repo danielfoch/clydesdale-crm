@@ -14,11 +14,12 @@ import {
   snoozeContactAction,
   snoozeDealAction,
 } from "@/app/actions";
-import { Button, PageHeader, Panel } from "@/components/ui";
+import { Button, Panel } from "@/components/ui";
 import { contactTypeLabel, formatDue, stageLabel } from "@/lib/display";
 import { getPrisma } from "@/lib/prisma";
 import { getTodayRecommendations, type TodayRecommendation } from "@/lib/recommended-actions";
 import { getDefaultWorkspaceId } from "@/lib/workspace";
+import { MotivationRotator } from "./motivation-rotator";
 
 export const dynamic = "force-dynamic";
 
@@ -273,7 +274,13 @@ export default async function TodayPage() {
 
   return (
     <>
-      <PageHeader title="Today" subtitle="Your highest-value actions, ranked by AI." />
+      <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <header className="flex flex-col gap-1">
+          <h1 className="text-2xl font-semibold tracking-normal text-[#17231d]">Today</h1>
+          <p className="max-w-3xl text-sm text-[#5f6a62]">Your highest-value actions, ranked by AI.</p>
+        </header>
+        <MotivationRotator />
+      </div>
       <Panel title="What should I do now?">
         {recommendations.length ? (
           <div className="divide-y divide-[#edf0ea]">
