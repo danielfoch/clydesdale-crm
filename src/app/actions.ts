@@ -8,7 +8,7 @@ import { getPrisma } from "@/lib/prisma";
 import { getDefaultWorkspaceId } from "@/lib/workspace";
 import { writeAudit } from "@/lib/audit";
 import { generateClientForLifeCheckin } from "@/lib/ai";
-import { approveAndSendMessage } from "@/lib/messages";
+import { approveAndSendMessage, createMessageDraft } from "@/lib/messages";
 
 function requiredString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -409,6 +409,78 @@ export async function completeLifecycleTouchAction(formData: FormData) {
   await writeAudit({ workspaceId, actorType: "user", action: "client_lifecycle.completed", targetType: "client_lifecycle_event", targetId: eventId, metadata: { messageId: message.id } }, db);
   revalidatePath("/today");
   revalidatePath(`/people/${event.contactId}`);
+}
+
+export async function draftContactMessageAction(formData: FormData) {
+  const db = getPrisma();
+  const workspaceId = await getDefaultWorkspaceId();
+  const contactId = requiredString(formData, "contactId");
+  const channel = requiredString(formData, "channel") as "sms" | "email";
+  const subject = optionalString(formData, "subject");
+  const body = requiredString(formData, "body");
+
+  const message = await createMessageDraft(
+    {
+      workspaceId,
+      contactId,
+      channel,
+      subject,
+      body,
+      aiGenerated: false,
+      metadata: { source: "contact_profile" },
+    },
+    db,
+  );
+
+  await db.contact.update({
+    where: { id: contactId },
+    data: {
+      nextAction: channel === "sms" ? "Approve and send drafted SMS" : "Approve and send drafted email",
+      nextActionType: channel,
+      nextActionDueAt: new Date(),
+      nextActionReason: "Manual message drafted from contact profile",
+    },
+  });
+  await writeAudit({ workspaceId, actorType: "user", action: "message.manual_draft_created", targetType: "message", targetId: message.id }, db);
+  revalidatePath("/today");
+  revalidatePath(`/people/${contactId}`);
+}
+
+export async function sendContactMessageAction(formData: FormData) {
+  const db = getPrisma();
+  const workspaceId = await getDefaultWorkspaceId();
+  const contactId = requiredString(formData, "contactId");
+  const channel = requiredString(formData, "channel") as "sms" | "email";
+  const subject = optionalString(formData, "subject");
+  const body = requiredString(formData, "body");
+
+  const draft = await createMessageDraft(
+    {
+      workspaceId,
+      contactId,
+      channel,
+      subject,
+      body,
+      aiGenerated: false,
+      metadata: { source: "contact_profile_send" },
+    },
+    db,
+  );
+  const sent = await approveAndSendMessage(draft.id, db);
+
+  await db.contact.update({
+    where: { id: contactId },
+    data: {
+      lastTouchAt: new Date(),
+      nextAction: "Wait for reply; follow up if no response",
+      nextActionType: "task",
+      nextActionDueAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      nextActionReason: sent.status === "sent" ? "Message sent from contact profile" : "Message logged from contact profile",
+    },
+  });
+  await writeAudit({ workspaceId, actorType: "user", action: "message.manual_sent", targetType: "message", targetId: sent.id }, db);
+  revalidatePath("/today");
+  revalidatePath(`/people/${contactId}`);
 }
 
 export async function approveDraftAction(formData: FormData) {

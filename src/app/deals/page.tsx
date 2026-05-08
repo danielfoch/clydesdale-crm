@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { closeDealAction } from "@/app/actions";
+import { assignDealAction, closeDealAction, logCallAction, snoozeDealAction } from "@/app/actions";
 import { Badge, Button, PageHeader, Panel } from "@/components/ui";
 import { getPrisma } from "@/lib/prisma";
 import { getDefaultWorkspaceId } from "@/lib/workspace";
@@ -38,10 +38,26 @@ export default async function DealsPage() {
                       Value: ${(deal.valueCents / 100).toLocaleString()} · Due: {deal.nextActionDueAt.toLocaleDateString()} · Risk: {deal.riskLevel}
                     </div>
                     {deal.stage !== "closed" ? (
-                      <form action={closeDealAction}>
-                        <input type="hidden" name="dealId" value={deal.id} />
-                        <Button>Close deal</Button>
-                      </form>
+                      <div className="flex flex-wrap gap-2">
+                        <form action={logCallAction}>
+                          <input type="hidden" name="dealId" value={deal.id} />
+                          <input type="hidden" name="body" value="Deal call logged from Deals screen." />
+                          <Button>Call</Button>
+                        </form>
+                        <form action={snoozeDealAction}>
+                          <input type="hidden" name="dealId" value={deal.id} />
+                          <input type="hidden" name="hours" value="24" />
+                          <button className="rounded border border-[#cfd6ca] px-3 py-2 text-sm hover:bg-[#f5f7f2]">Snooze</button>
+                        </form>
+                        <form action={assignDealAction}>
+                          <input type="hidden" name="dealId" value={deal.id} />
+                          <button className="rounded border border-[#cfd6ca] px-3 py-2 text-sm hover:bg-[#f5f7f2]">Assign</button>
+                        </form>
+                        <form action={closeDealAction}>
+                          <input type="hidden" name="dealId" value={deal.id} />
+                          <Button>Close deal</Button>
+                        </form>
+                      </div>
                     ) : null}
                   </article>
                 ))}

@@ -78,3 +78,5 @@ TWILIO_FROM_NUMBER="+1..."
 ```
 
 SMS sending remains approval-first. AI drafts are sent only after `Approve & Send`; if Twilio config or a contact phone is missing, the CRM logs a mock send instead of failing.
+
+Calling is currently click-to-dial/logging: contact profiles can open the device dialer with `tel:` and log the call to the timeline. Twilio Voice bridging is not enabled yet because it needs either an agent phone number to bridge calls to, or a browser voice setup.

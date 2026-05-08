@@ -1,5 +1,17 @@
 import { notFound } from "next/navigation";
-import { addNoteAction, createDealAction, createTaskAction, enrollCampaignAction, markPastClientAction } from "@/app/actions";
+import {
+  addNoteAction,
+  approveDraftAction,
+  assignContactAction,
+  createDealAction,
+  createTaskAction,
+  draftContactMessageAction,
+  enrollCampaignAction,
+  logCallAction,
+  markPastClientAction,
+  sendContactMessageAction,
+  snoozeContactAction,
+} from "@/app/actions";
 import { Badge, Button, inputClass, PageHeader, Panel } from "@/components/ui";
 import { draftMessage } from "@/lib/ai";
 import { getPrisma } from "@/lib/prisma";
@@ -34,6 +46,10 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
 
   const channel = contact.phones[0] ? "sms" : "email";
   const aiDraft = await draftMessage(contact, channel);
+  const latestDrafts = contact.messages
+    .filter((message) => message.status === "draft")
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .slice(0, 3);
   const timeline = [
     ...contact.leadEvents.map((item) => ({ at: item.createdAt, label: "Lead event", body: item.source })),
     ...contact.messages.map((item) => ({ at: item.createdAt, label: `${item.channel} ${item.status}`, body: item.body })),
@@ -79,6 +95,62 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
                 <p className="mt-2 text-sm text-[#5f6a62]">{contact.nextActionReason}</p>
               </div>
               <pre className="whitespace-pre-wrap rounded bg-[#f5f7f2] p-3 text-xs">{aiDraft}</pre>
+            </div>
+          </Panel>
+          <Panel title="Call and text">
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-2">
+                {contact.phones[0]?.phone ? (
+                  <a className="rounded bg-[#17231d] px-3 py-2 text-sm font-medium text-white hover:bg-[#26382f]" href={`tel:${contact.phones[0].phone}`}>
+                    Open Dialer
+                  </a>
+                ) : null}
+                <form action={logCallAction}>
+                  <input type="hidden" name="contactId" value={contact.id} />
+                  <input type="hidden" name="body" value="Call logged from contact profile." />
+                  <Button>Log Call</Button>
+                </form>
+                <form action={snoozeContactAction}>
+                  <input type="hidden" name="contactId" value={contact.id} />
+                  <input type="hidden" name="hours" value="24" />
+                  <button className="rounded border border-[#cfd6ca] px-3 py-2 text-sm hover:bg-[#f5f7f2]">Snooze</button>
+                </form>
+                <form action={assignContactAction}>
+                  <input type="hidden" name="contactId" value={contact.id} />
+                  <button className="rounded border border-[#cfd6ca] px-3 py-2 text-sm hover:bg-[#f5f7f2]">Assign</button>
+                </form>
+              </div>
+              <form action={sendContactMessageAction} className="space-y-2">
+                <input type="hidden" name="contactId" value={contact.id} />
+                <input type="hidden" name="channel" value="sms" />
+                <textarea name="body" className={inputClass} defaultValue={channel === "sms" ? aiDraft : ""} placeholder="Text message" rows={4} required />
+                <Button>Send SMS</Button>
+              </form>
+              <form action={draftContactMessageAction} className="space-y-2">
+                <input type="hidden" name="contactId" value={contact.id} />
+                <input type="hidden" name="channel" value="sms" />
+                <textarea name="body" className={inputClass} defaultValue={channel === "sms" ? aiDraft : ""} placeholder="SMS draft" rows={3} required />
+                <Button>Save SMS Draft</Button>
+              </form>
+              <form action={draftContactMessageAction} className="space-y-2">
+                <input type="hidden" name="contactId" value={contact.id} />
+                <input type="hidden" name="channel" value="email" />
+                <input name="subject" className={inputClass} placeholder="Email subject" defaultValue="Quick follow-up" />
+                <textarea name="body" className={inputClass} defaultValue={channel === "email" ? aiDraft : ""} placeholder="Email draft" rows={5} required />
+                <Button>Save Email Draft</Button>
+              </form>
+              {latestDrafts.length ? (
+                <div className="space-y-2">
+                  <div className="text-sm font-medium">Drafts awaiting approval</div>
+                  {latestDrafts.map((message) => (
+                    <form key={message.id} action={approveDraftAction} className="rounded border border-[#e4e8df] p-2">
+                      <input type="hidden" name="messageId" value={message.id} />
+                      <div className="mb-2 line-clamp-2 text-xs text-[#5f6a62]">{message.body}</div>
+                      <Button>Approve & Send {message.channel.toUpperCase()}</Button>
+                    </form>
+                  ))}
+                </div>
+              ) : null}
             </div>
           </Panel>
           <Panel title="Actions">
