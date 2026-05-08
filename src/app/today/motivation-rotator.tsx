@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { RefreshCw } from "lucide-react";
 
 const quotes = [
   { source: "Sales", text: "Speed wins. Follow up before the lead forgets why they raised their hand." },
@@ -19,6 +20,7 @@ const quotes = [
 
 export function MotivationRotator() {
   const [index, setIndex] = useState(0);
+  const nextQuote = () => setIndex((current) => (current + 1) % quotes.length);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -31,10 +33,21 @@ export function MotivationRotator() {
   const quote = quotes[index];
 
   return (
-    <aside className="w-full rounded-md border border-[#d9ded5] bg-white p-3 shadow-sm sm:max-w-sm" aria-live="polite">
+    <aside className="w-full rounded-md border border-[#d9ded5] bg-white p-3 shadow-sm lg:max-w-xl" aria-live="polite">
       <div className="mb-2 flex items-center justify-between gap-3">
         <span className="text-[10px] font-semibold uppercase tracking-normal text-[#68736a]">Motivation</span>
-        <span className="rounded bg-[#e9efe6] px-2 py-1 text-[10px] font-medium text-[#304037]">{quote.source}</span>
+        <div className="flex items-center gap-2">
+          <span className="rounded bg-[#e9efe6] px-2 py-1 text-[10px] font-medium text-[#304037]">{quote.source}</span>
+          <button
+            type="button"
+            onClick={nextQuote}
+            className="grid size-6 place-items-center rounded border border-[#d9ded5] text-[#46534b] hover:bg-[#f5f7f2]"
+            aria-label="Show another quote"
+            title="Show another quote"
+          >
+            <RefreshCw size={12} />
+          </button>
+        </div>
       </div>
       <p className="text-sm font-medium leading-5 text-[#17231d]">{quote.text}</p>
     </aside>

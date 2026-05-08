@@ -274,7 +274,7 @@ export default async function TodayPage() {
 
   return (
     <>
-      <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+      <div className="mb-5 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(420px,560px)] lg:items-start">
         <header className="flex flex-col gap-1">
           <h1 className="text-2xl font-semibold tracking-normal text-[#17231d]">Today</h1>
           <p className="max-w-3xl text-sm text-[#5f6a62]">Your highest-value actions, ranked by AI.</p>
