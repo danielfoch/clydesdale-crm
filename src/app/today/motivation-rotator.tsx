@@ -1,84 +1,35 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { Pause, Play, RefreshCw, ThumbsDown, ThumbsUp } from "lucide-react";
+import { submitMotivationQuoteAction, voteMotivationQuoteAction } from "@/app/actions";
 
-const quotes = [
-  { source: "Friedrich Nietzsche", text: "He who has a why can bear almost any how." },
-  { source: "Viktor Frankl", text: "What is to give light must endure burning." },
-  { source: "Viktor Frankl", text: "When we cannot change a situation, we are challenged to change ourselves." },
-  { source: "Bob Hooey", text: "If you are not taking care of your customer, your competitor will." },
-  { source: "Tony Hsieh", text: "Chase the vision, not the money; the money will end up following you." },
-  { source: "Jim Cathcart", text: "Become the person who would attract the results you seek." },
-  { source: "Michael Jordan", text: "You must expect great things of yourself before you can do them." },
-  { source: "Mark Roberge", text: "It is about listening, diagnosing and prescribing." },
-  { source: "Bruce Lee", text: "I fear the man who has practiced one kick 10,000 times." },
-  { source: "George Addair", text: "Everything you have ever wanted is on the other side of fear." },
-  { source: "Jeffrey Gitomer", text: "Great salespeople are relationship builders who provide value." },
-  { source: "Frank Bettger", text: "If you do not believe in what you are selling, neither will your prospect." },
-  { source: "Steve Jobs", text: "If you really care about the work, the vision pulls you." },
-  { source: "Ralph Marston", text: "Excellence is not a skill. It is an attitude." },
-  { source: "Shiv Khera", text: "90 percent of selling is conviction and 10 percent is persuasion." },
-  { source: "Patricia Fripp", text: "You do not compete on price. You compete on relationships." },
-  { source: "r/sales", text: "A confused mind always says no." },
-  { source: "r/sales", text: "Every sale follows a process, either yours or the customer's." },
-  { source: "r/sales", text: "Price, quality, and service. Pick any two." },
-  { source: "Seth Godin", text: "Do not find customers for your products; find products for your customers." },
-  { source: "Katherine Barchetti", text: "Make a customer, not a sale." },
-  { source: "Bill Gates", text: "Your most unhappy customers are your greatest source of learning." },
-  { source: "William C. Stone", text: "Sales are contingent upon the attitude of the salesman." },
-  { source: "Jim Rohn", text: "Either you run the day, or the day runs you." },
-  { source: "Will Rogers", text: "Even if you are on the right track, you will get run over if you just sit there." },
-  { source: "Wayne Gretzky", text: "You miss 100 percent of the shots you do not take." },
-  { source: "Tim Ferriss", text: "Focus on being productive instead of being busy." },
-  { source: "Jocko Willink", text: "Do not count on motivation. Count on discipline." },
-  { source: "Mike Puglia", text: "Establishing trust is better than any sales technique." },
-  { source: "Mark Twain", text: "The secret of getting ahead is getting started." },
-  { source: "r/sales", text: "A goal without a plan is just a wish." },
-  { source: "r/sales", text: "When you lose, say little. When you win, say less." },
-  { source: "r/sales", text: "If you say you are going to do something, do it." },
-  { source: "r/sales", text: "The more I prospect, the luckier I get." },
-  { source: "r/sales", text: "The sale begins when the customer says no." },
-  { source: "John Wooden", text: "Do not let what you cannot do interfere with what you can do." },
-  { source: "Nelson Mandela", text: "I never lose. I either win or learn." },
-  { source: "Thomas Edison", text: "The most certain way to succeed is to try just one more time." },
-  { source: "Seth Godin", text: "If it scares you, it might be a good thing to try." },
-  { source: "Henry Ford", text: "You cannot build a reputation on what you are going to do." },
-  { source: "Bob Burg", text: "Sometimes the most influential thing we can do is listen." },
-  { source: "r/sales", text: "Nothing happens until somebody sells something." },
-  { source: "r/sales", text: "When there is a lack of value, everything comes down to price." },
-  { source: "r/sales", text: "You have two ears and one mouth for a reason." },
-  { source: "r/sales", text: "Win fast, win slow. Lose fast." },
-  { source: "Richard Thaler", text: "If you want somebody to do something, make it easy." },
-  { source: "r/sales", text: "Logic unlocks the mind; emotion unlocks the pocketbook." },
-  { source: "r/sales", text: "Just because they said no does not mean they will not sign." },
-  { source: "r/sales", text: "Learn to take yes for an answer." },
-  { source: "r/sales", text: "If a customer did not say it, it is not true." },
-  { source: "Ann Landers", text: "Opportunities are usually disguised as hard work." },
-  { source: "Zig Ziglar", text: "If you aim at nothing, you will hit it every time." },
-  { source: "Henry Ford", text: "Whether you think you can or cannot, you are right." },
-  { source: "Jill Konrath", text: "Sales is an outcome, not a goal." },
-  { source: "Brian Tracy", text: "Approach each customer with the idea of helping them solve a problem." },
-  { source: "Jill Rowley", text: "Always Be Closing has become Always Be Connecting." },
-  { source: "Babe Ruth", text: "You just cannot beat the person who never gives up." },
-  { source: "Jim Rohn", text: "Practice makes skill. Skill makes fortune." },
-  { source: "Brian Tracy", text: "Sales success is 80 percent attitude and 20 percent aptitude." },
-  { source: "Thomas Freese", text: "The questions you ask are more important than the things you say." },
-];
+export type MotivationQuote = {
+  id: string;
+  source: string;
+  text: string;
+  upvotes: number;
+  downvotes: number;
+};
 
-export function MotivationRotator() {
+export function MotivationRotator({ quotes }: { quotes: MotivationQuote[] }) {
   const [index, setIndex] = useState(0);
-  const nextQuote = () => setIndex((current) => (current + 1) % quotes.length);
+  const [paused, setPaused] = useState(false);
+  const quote = quotes[index] ?? quotes[0];
+  const nextQuote = () => setIndex((current) => (current + 1) % Math.max(quotes.length, 1));
 
   useEffect(() => {
+    if (paused || quotes.length <= 1) return;
     const timer = window.setInterval(() => {
       setIndex((current) => (current + 1) % quotes.length);
     }, 9000);
 
     return () => window.clearInterval(timer);
-  }, []);
+  }, [paused, quotes.length]);
 
-  const quote = quotes[index];
+  if (!quote) {
+    return null;
+  }
 
   return (
     <aside className="w-full rounded-md border border-[#d9ded5] bg-white p-3 shadow-sm lg:max-w-xl" aria-live="polite">
@@ -86,6 +37,15 @@ export function MotivationRotator() {
         <span className="text-[10px] font-semibold uppercase tracking-normal text-[#68736a]">Motivation</span>
         <div className="flex items-center gap-2">
           <span className="rounded bg-[#e9efe6] px-2 py-1 text-[10px] font-medium text-[#304037]">{quote.source}</span>
+          <button
+            type="button"
+            onClick={() => setPaused((current) => !current)}
+            className="grid size-6 place-items-center rounded border border-[#d9ded5] text-[#46534b] hover:bg-[#f5f7f2]"
+            aria-label={paused ? "Play quote rotation" : "Pause quote rotation"}
+            title={paused ? "Play" : "Pause"}
+          >
+            {paused ? <Play size={12} /> : <Pause size={12} />}
+          </button>
           <button
             type="button"
             onClick={nextQuote}
@@ -98,6 +58,37 @@ export function MotivationRotator() {
         </div>
       </div>
       <p className="text-sm font-medium leading-5 text-[#17231d]">{quote.text}</p>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5">
+          <form action={voteMotivationQuoteAction}>
+            <input type="hidden" name="quoteId" value={quote.id} />
+            <input type="hidden" name="direction" value="up" />
+            <button className="inline-flex items-center gap-1 rounded border border-[#d9ded5] px-2 py-1 text-xs text-[#46534b] hover:bg-[#f5f7f2]" title="Upvote">
+              <ThumbsUp size={12} /> {quote.upvotes}
+            </button>
+          </form>
+          <form action={voteMotivationQuoteAction}>
+            <input type="hidden" name="quoteId" value={quote.id} />
+            <input type="hidden" name="direction" value="down" />
+            <button className="inline-flex items-center gap-1 rounded border border-[#d9ded5] px-2 py-1 text-xs text-[#46534b] hover:bg-[#f5f7f2]" title="Downvote">
+              <ThumbsDown size={12} /> {quote.downvotes}
+            </button>
+          </form>
+        </div>
+        <details className="relative [&>summary::-webkit-details-marker]:hidden">
+          <summary className="cursor-pointer rounded border border-[#d9ded5] px-2 py-1 text-xs text-[#46534b] hover:bg-[#f5f7f2]">
+            Submit quote
+          </summary>
+          <div className="absolute right-0 z-30 mt-2 w-[min(92vw,360px)] rounded-md border border-[#d9ded5] bg-white p-3 shadow-xl">
+            <form action={submitMotivationQuoteAction} className="space-y-2">
+              <textarea name="text" className="w-full rounded border border-[#cfd6ca] bg-white px-3 py-2 text-sm outline-none focus:border-[#72806f]" placeholder="Quote" rows={3} required />
+              <input name="source" className="w-full rounded border border-[#cfd6ca] bg-white px-3 py-2 text-sm outline-none focus:border-[#72806f]" placeholder="Source or author" />
+              <input name="submittedBy" className="w-full rounded border border-[#cfd6ca] bg-white px-3 py-2 text-sm outline-none focus:border-[#72806f]" placeholder="Your name" />
+              <button className="rounded bg-[#17231d] px-3 py-2 text-sm font-medium text-white hover:bg-[#26382f]">Add quote</button>
+            </form>
+          </div>
+        </details>
+      </div>
     </aside>
   );
 }

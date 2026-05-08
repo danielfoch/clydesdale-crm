@@ -74,6 +74,7 @@ model Workspace {
   webhookDeliveries    WebhookDelivery[]
   webhookEvents        WebhookEvent[]
   aiProviderSettings   AiProviderSetting[]
+  motivationQuotes     MotivationQuote[]
   recommendedActions   RecommendedAction[]
   agentCommands        AgentCommand[]
   auditLogs            AuditLog[]
@@ -362,6 +363,24 @@ model AiProviderSetting {
 
   @@unique([workspaceId, provider])
   @@map("ai_provider_settings")
+}
+
+model MotivationQuote {
+  id          String    @id @default(cuid())
+  workspaceId String
+  text        String
+  source      String    @default("User")
+  upvotes     Int       @default(0)
+  downvotes   Int       @default(0)
+  submittedBy String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, text])
+  @@index([workspaceId, isActive])
+  @@map("motivation_quotes")
 }
 
 model Workflow {

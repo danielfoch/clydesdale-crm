@@ -16,6 +16,7 @@ import {
 } from "@/app/actions";
 import { Button, Panel } from "@/components/ui";
 import { contactTypeLabel, formatDue, stageLabel } from "@/lib/display";
+import { ensureDefaultMotivationQuotes } from "@/lib/motivation-quotes";
 import { getPrisma } from "@/lib/prisma";
 import { getTodayRecommendations, type TodayRecommendation } from "@/lib/recommended-actions";
 import { getDefaultWorkspaceId } from "@/lib/workspace";
@@ -270,7 +271,15 @@ function RecommendationRow({ item, index }: { item: TodayRecommendation; index: 
 export default async function TodayPage() {
   const db = getPrisma();
   const workspaceId = await getDefaultWorkspaceId();
-  const recommendations = await getTodayRecommendations(db, workspaceId);
+  await ensureDefaultMotivationQuotes(workspaceId, db);
+  const [recommendations, motivationQuotes] = await Promise.all([
+    getTodayRecommendations(db, workspaceId),
+    db.motivationQuote.findMany({
+      where: { workspaceId, isActive: true },
+      orderBy: [{ upvotes: "desc" }, { createdAt: "asc" }],
+      take: 80,
+    }),
+  ]);
 
   return (
     <>
@@ -279,7 +288,13 @@ export default async function TodayPage() {
           <h1 className="text-2xl font-semibold tracking-normal text-[#17231d]">Today</h1>
           <p className="max-w-3xl text-sm text-[#5f6a62]">Your highest-value actions, ranked by AI.</p>
         </header>
-        <MotivationRotator />
+        <MotivationRotator quotes={motivationQuotes.map((quote) => ({
+          id: quote.id,
+          source: quote.source,
+          text: quote.text,
+          upvotes: quote.upvotes,
+          downvotes: quote.downvotes,
+        }))} />
       </div>
       <Panel title="What should I do now?">
         {recommendations.length ? (

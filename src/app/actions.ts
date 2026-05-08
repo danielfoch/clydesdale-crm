@@ -48,6 +48,44 @@ export async function addNoteAction(formData: FormData) {
   revalidatePath(`/people/${contactId}`);
 }
 
+export async function submitMotivationQuoteAction(formData: FormData) {
+  const db = getPrisma();
+  const workspaceId = await getDefaultWorkspaceId();
+  const text = requiredString(formData, "text");
+  const source = optionalString(formData, "source") ?? "User";
+  const submittedBy = optionalString(formData, "submittedBy") ?? "CRM user";
+  const quote = await db.motivationQuote.upsert({
+    where: { workspaceId_text: { workspaceId, text } },
+    create: { workspaceId, text, source, submittedBy },
+    update: { isActive: true },
+  });
+  await writeAudit({ workspaceId, actorType: "user", action: "motivation_quote.submitted", targetType: "motivation_quote", targetId: quote.id }, db);
+  revalidatePath("/today");
+}
+
+export async function voteMotivationQuoteAction(formData: FormData) {
+  const db = getPrisma();
+  const workspaceId = await getDefaultWorkspaceId();
+  const quoteId = requiredString(formData, "quoteId");
+  const direction = requiredString(formData, "direction");
+  if (direction !== "up" && direction !== "down") {
+    throw new Error("direction must be up or down");
+  }
+  const existingQuote = await db.motivationQuote.findFirst({
+    where: { id: quoteId, workspaceId },
+    select: { id: true },
+  });
+  if (!existingQuote) {
+    throw new Error("Quote not found");
+  }
+  const quote = await db.motivationQuote.update({
+    where: { id: quoteId },
+    data: direction === "up" ? { upvotes: { increment: 1 } } : { downvotes: { increment: 1 } },
+  });
+  await writeAudit({ workspaceId, actorType: "user", action: `motivation_quote.${direction === "up" ? "upvoted" : "downvoted"}`, targetType: "motivation_quote", targetId: quote.id }, db);
+  revalidatePath("/today");
+}
+
 export async function createTaskAction(formData: FormData) {
   const db = getPrisma();
   const workspaceId = await getDefaultWorkspaceId();
