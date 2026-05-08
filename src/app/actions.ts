@@ -101,6 +101,7 @@ export async function createTaskAction(formData: FormData) {
   });
   await writeAudit({ workspaceId, actorType: "user", action: "task.created", targetType: "task", targetId: task.id }, db);
   revalidatePath("/today");
+  revalidatePath("/contacts");
   revalidatePath("/pipeline");
   revalidatePath("/deals");
   if (contactId) revalidatePath(`/people/${contactId}`);
@@ -138,6 +139,7 @@ export async function createDealAction(formData: FormData) {
     },
   });
   await writeAudit({ workspaceId, actorType: "user", action: "deal.created", targetType: "deal", targetId: deal.id }, db);
+  revalidatePath("/contacts");
   revalidatePath("/pipeline");
   revalidatePath("/deals");
   revalidatePath(`/people/${contactId}`);
@@ -384,6 +386,7 @@ export async function manualLeadAction(formData: FormData) {
     raw: { entry: "manual" },
   });
   revalidatePath("/people");
+  revalidatePath("/contacts");
   revalidatePath("/pipeline");
   revalidatePath("/today");
 }
@@ -395,6 +398,7 @@ export async function markTaskDoneAction(formData: FormData) {
   const task = await db.task.update({ where: { id: taskId }, data: { status: "done", completedAt: new Date() } });
   await writeAudit({ workspaceId, actorType: "user", action: "task.completed", targetType: "task", targetId: taskId }, db);
   revalidatePath("/today");
+  revalidatePath("/contacts");
   revalidatePath("/pipeline");
   revalidatePath("/deals");
   if (task.contactId) revalidatePath(`/people/${task.contactId}`);
@@ -650,6 +654,7 @@ export async function logCallAction(formData: FormData) {
 
   await writeAudit({ workspaceId, actorType: "user", action: status === "initiated" ? "call.started_twilio" : "call.logged", targetType: "message", targetId: message.id }, db);
   revalidatePath("/today");
+  revalidatePath("/contacts");
   revalidatePath("/pipeline");
   if (contact?.id) revalidatePath(`/people/${contact.id}`);
   if (dealId) revalidatePath("/deals");
@@ -669,6 +674,7 @@ export async function queueVoicemailDropAction(formData: FormData) {
     db,
   );
   revalidatePath("/today");
+  revalidatePath("/contacts");
   revalidatePath("/pipeline");
   revalidatePath(`/people/${contactId}`);
 }
@@ -687,6 +693,7 @@ export async function queueAiIsaCallAction(formData: FormData) {
     db,
   );
   revalidatePath("/today");
+  revalidatePath("/contacts");
   revalidatePath("/pipeline");
   revalidatePath(`/people/${contactId}`);
 }
@@ -705,6 +712,7 @@ export async function snoozeContactAction(formData: FormData) {
   });
   await writeAudit({ workspaceId, actorType: "user", action: "contact.snoozed", targetType: "contact", targetId: contactId, metadata: { hours } }, db);
   revalidatePath("/today");
+  revalidatePath("/contacts");
   revalidatePath("/pipeline");
   revalidatePath(`/people/${contactId}`);
 }
@@ -725,6 +733,7 @@ export async function assignContactAction(formData: FormData) {
   });
   await writeAudit({ workspaceId, actorType: "user", actorId: ownerId, action: "contact.assigned", targetType: "contact", targetId: contactId }, db);
   revalidatePath("/today");
+  revalidatePath("/contacts");
   revalidatePath("/pipeline");
   revalidatePath(`/people/${contactId}`);
 }
@@ -792,6 +801,7 @@ export async function updateContactPipelineStageAction(formData: FormData) {
     });
   }
   await writeAudit({ workspaceId, actorType: "user", action: "contact.pipeline_stage_changed", targetType: "contact", targetId: contactId, metadata: { stage } }, db);
+  revalidatePath("/contacts");
   revalidatePath("/pipeline");
   revalidatePath("/deals");
   revalidatePath("/today");
@@ -940,6 +950,7 @@ export async function draftContactMessageAction(formData: FormData) {
   });
   await writeAudit({ workspaceId, actorType: "user", action: "message.manual_draft_created", targetType: "message", targetId: message.id }, db);
   revalidatePath("/today");
+  revalidatePath("/contacts");
   revalidatePath("/pipeline");
   revalidatePath("/deals");
   revalidatePath(`/people/${contactId}`);
@@ -979,6 +990,7 @@ export async function sendContactMessageAction(formData: FormData) {
   });
   await writeAudit({ workspaceId, actorType: "user", action: "message.manual_sent", targetType: "message", targetId: sent.id }, db);
   revalidatePath("/today");
+  revalidatePath("/contacts");
   revalidatePath("/pipeline");
   revalidatePath("/deals");
   revalidatePath(`/people/${contactId}`);
