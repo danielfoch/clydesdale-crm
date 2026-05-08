@@ -461,7 +461,7 @@ export async function completeLoopChecklistItemAction(formData: FormData) {
       data: {
         urgencyScore: { increment: 5 },
         nextActionConfidence: Math.min(95, 70 + completedCount * 4),
-        nextActionReason: `Loop progress: ${label}`,
+        nextActionReason: `Stage progress: ${label}`,
       },
     });
     const updated = await db.contact.findUnique({ where: { id: scoreContactId }, select: { urgencyScore: true } });
@@ -540,7 +540,7 @@ export async function uncompleteLoopChecklistItemAction(formData: FormData) {
       data: {
         urgencyScore: { decrement: 5 },
         nextActionConfidence: Math.min(95, 70 + completedCount * 4),
-        nextActionReason: `Loop box unchecked: ${label}`,
+        nextActionReason: `Stage box unchecked: ${label}`,
       },
     });
     const updated = await db.contact.findUnique({ where: { id: scoreContactId }, select: { urgencyScore: true } });

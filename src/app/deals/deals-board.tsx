@@ -239,10 +239,10 @@ function DealCard({
                 <IconChip label={dueTitle} className={dueClass(dueDelta)}>
                   {dueDelta}
                 </IconChip>
-                <IconChip label={`Client score: ${urgencyLabel(clientScore)} (${clientScore}/100). Completing loop boxes adds +5.`} className={urgencyClass(clientScore)}>
+                <IconChip label={`Client score: ${urgencyLabel(clientScore)} (${clientScore}/100). Completing stage boxes adds +5.`} className={urgencyClass(clientScore)}>
                   {clientScore}
                 </IconChip>
-                <IconChip label={`Loop progress: ${completedLoopCount}/${loopItems.length}`} className="bg-[#e9efe6] text-[#304037]">
+                <IconChip label={`Stage progress: ${completedLoopCount}/${loopItems.length}`} className="bg-[#e9efe6] text-[#304037]">
                   {completedLoopCount}/{loopItems.length}
                 </IconChip>
               </div>
@@ -291,7 +291,7 @@ function DealCard({
           ) : null}
 
           <div className="space-y-1.5">
-            <div className="text-[10px] font-semibold uppercase tracking-normal text-[#68736a]">Loop checklist · +5 score per box</div>
+            <div className="text-[10px] font-semibold uppercase tracking-normal text-[#68736a]">Stage checklist · +5 score per box</div>
             {loopItems.map((item) => {
               const type = loopTaskType("deal", deal.stage, item.key);
               const done = deal.tasks.some((task) => task.type === type && task.status === "done");
