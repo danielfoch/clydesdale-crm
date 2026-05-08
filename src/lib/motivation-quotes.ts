@@ -27,6 +27,7 @@ export const defaultMotivationQuotes = [
   { source: "Jim Rohn", text: "Either you run the day, or the day runs you." },
   { source: "Will Rogers", text: "Even if you are on the right track, you will get run over if you just sit there." },
   { source: "Wayne Gretzky", text: "You miss 100 percent of the shots you do not take." },
+  { source: "Dan Pena", text: "You're 2000 cold calls away from being a millionaire." },
   { source: "Tim Ferriss", text: "Focus on being productive instead of being busy." },
   { source: "Jocko Willink", text: "Do not count on motivation. Count on discipline." },
   { source: "Elon Musk", text: "You should take the approach that you are wrong. Your goal is to be less wrong." },
