@@ -62,6 +62,7 @@ export const defaultMotivationQuotes = [
   { source: "r/sales", text: "When there is a lack of value, everything comes down to price." },
   { source: "r/sales", text: "You have two ears and one mouth for a reason." },
   { source: "r/sales", text: "Win fast, win slow. Lose fast." },
+  { source: "Sales", text: "Four ways to work a deal: win fast, win slow, lose fast, but do not lose slow." },
   { source: "Richard Thaler", text: "If you want somebody to do something, make it easy." },
   { source: "r/sales", text: "Logic unlocks the mind; emotion unlocks the pocketbook." },
   { source: "r/sales", text: "Just because they said no does not mean they will not sign." },
