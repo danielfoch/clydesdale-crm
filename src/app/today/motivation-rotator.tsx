@@ -4,18 +4,24 @@ import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 
 const quotes = [
-  { source: "Sales", text: "Speed wins. Follow up before the lead forgets why they raised their hand." },
-  { source: "Hormozi-style", text: "Make the offer clearer, the action smaller, and the follow-up faster." },
-  { source: "Dan Pena-style", text: "High standards beat soft intentions. Pick up the phone." },
-  { source: "GaryVee-style", text: "Attention is rented. Trust is earned. Do the next useful thing." },
-  { source: "Yoda-style", text: "Follow up or follow out. No maybe pipeline." },
-  { source: "Sales", text: "The lead does not need a perfect CRM. They need a useful response now." },
-  { source: "Hormozi-style", text: "More volume with cleaner intent. More reps with better notes." },
-  { source: "Dan Pena-style", text: "If the deal matters, stop admiring it and move it." },
-  { source: "GaryVee-style", text: "Care louder than the next agent. Then document everything." },
-  { source: "Yoda-style", text: "A next action, every relationship must have." },
-  { source: "Sales", text: "Pipeline is not storage. Pipeline is motion." },
-  { source: "Clydesdale", text: "No lead waits. No deal stalls. No past client goes cold." },
+  { source: "Bob Hooey", text: "If you are not taking care of your customer, your competitor will." },
+  { source: "Tony Hsieh", text: "Chase the vision, not the money; the money will end up following you." },
+  { source: "Jeffrey Gitomer", text: "Great salespeople are relationship builders who provide value." },
+  { source: "Shiv Khera", text: "90 percent of selling is conviction and 10 percent is persuasion." },
+  { source: "Patricia Fripp", text: "You do not compete on price. You compete on relationships." },
+  { source: "Seth Godin", text: "Do not find customers for your products; find products for your customers." },
+  { source: "Katherine Barchetti", text: "Make a customer, not a sale." },
+  { source: "Bill Gates", text: "Your most unhappy customers are your greatest source of learning." },
+  { source: "William C. Stone", text: "Sales are contingent upon the attitude of the salesman." },
+  { source: "Jim Rohn", text: "Either you run the day, or the day runs you." },
+  { source: "Will Rogers", text: "Even if you are on the right track, you will get run over if you just sit there." },
+  { source: "Wayne Gretzky", text: "You miss 100 percent of the shots you do not take." },
+  { source: "Tim Ferriss", text: "Focus on being productive instead of being busy." },
+  { source: "Mark Twain", text: "The secret of getting ahead is getting started." },
+  { source: "John Wooden", text: "Do not let what you cannot do interfere with what you can do." },
+  { source: "Zig Ziglar", text: "If you aim at nothing, you will hit it every time." },
+  { source: "Brian Tracy", text: "Sales success is 80 percent attitude and 20 percent aptitude." },
+  { source: "Thomas Freese", text: "The questions you ask are more important than the things you say." },
 ];
 
 export function MotivationRotator() {
