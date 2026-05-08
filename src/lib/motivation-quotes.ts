@@ -76,6 +76,18 @@ export const defaultMotivationQuotes = [
   { source: "Jim Rohn", text: "Practice makes skill. Skill makes fortune." },
   { source: "Brian Tracy", text: "Sales success is 80 percent attitude and 20 percent aptitude." },
   { source: "Thomas Freese", text: "The questions you ask are more important than the things you say." },
+  { source: "George Bernard Shaw", text: "Life is not about finding yourself. Life is about creating yourself." },
+  { source: "Suzy Kassem", text: "Doubt kills more dreams than failure ever will." },
+  { source: "Walt Whitman", text: "Keep your face always toward the sunshine, and shadows will fall behind you." },
+  { source: "Marcus Aurelius", text: "The happiness of your life depends on the quality of your thoughts." },
+  { source: "Aristotle", text: "It is during our darkest moments that we must focus to see the light." },
+  { source: "Michael Altshuler", text: "The bad news is time flies. The good news is you are the pilot." },
+  { source: "Brian Tracy", text: "Move out of your comfort zone." },
+  { source: "Helen Keller", text: "Never bend your head. Always hold it high." },
+  { source: "Walt Disney", text: "The best way to get started is to quit talking and begin doing." },
+  { source: "Brian Tracy", text: "Leaders set high standards." },
+  { source: "Brian Tracy", text: "There are no limits except the limits you place on your own thinking." },
+  { source: "Brian Tracy", text: "Your life only gets better when you get better." },
 ];
 
 export async function ensureDefaultMotivationQuotes(workspaceId: string, db: DbClient) {
