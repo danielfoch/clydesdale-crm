@@ -58,47 +58,77 @@ export default async function CampaignsPage() {
     <>
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <PageHeader title="Campaigns" subtitle="Warm up buyers, sellers, tenants, and landlords." />
-        <details className="relative [&>summary::-webkit-details-marker]:hidden">
-          <summary className="cursor-pointer rounded bg-[#17231d] px-3 py-2 text-sm font-medium text-white hover:bg-[#26382f]">
-            Create with AI
-          </summary>
-          <div className="absolute right-0 z-30 mt-2 w-[min(94vw,460px)] rounded-md border border-[#d9ded5] bg-white p-4 shadow-xl">
-            <form action={generateCampaignRecipeAction} className="space-y-3">
-              <select name="contactType" className={inputClass}>
-                {coreCampaignTypes.map((type) => <option key={type} value={type}>{contactTypeLabel(type)}</option>)}
-              </select>
-              <input name="goal" className={inputClass} placeholder="Goal" defaultValue="Convert leads into appointments" />
-              <select name="tone" className={inputClass} defaultValue="direct">
-                <option value="direct">Direct</option>
-                <option value="warm">Warm</option>
-                <option value="luxury">Luxury</option>
-                <option value="casual">Casual</option>
-                <option value="professional">Professional</option>
-              </select>
-              <div className="grid grid-cols-2 gap-3">
-                <input name="numberOfSteps" className={inputClass} type="number" min={1} max={8} defaultValue={5} />
-                <input name="totalDurationDays" className={inputClass} type="number" min={0} max={90} defaultValue={14} />
+        <div className="flex flex-wrap gap-2">
+          <details className="relative [&>summary::-webkit-details-marker]:hidden">
+            <summary className="cursor-pointer rounded bg-[#17231d] px-3 py-2 text-sm font-medium text-white hover:bg-[#26382f]">
+              Create with AI
+            </summary>
+            <div className="absolute right-0 z-30 mt-2 w-[min(94vw,460px)] rounded-md border border-[#d9ded5] bg-white p-4 shadow-xl">
+              <form action={generateCampaignRecipeAction} className="space-y-3">
+                <select name="contactType" className={inputClass}>
+                  {coreCampaignTypes.map((type) => <option key={type} value={type}>{contactTypeLabel(type)}</option>)}
+                </select>
+                <input name="goal" className={inputClass} placeholder="Goal" defaultValue="Convert leads into appointments" />
+                <select name="tone" className={inputClass} defaultValue="direct">
+                  <option value="direct">Direct</option>
+                  <option value="warm">Warm</option>
+                  <option value="luxury">Luxury</option>
+                  <option value="casual">Casual</option>
+                  <option value="professional">Professional</option>
+                </select>
+                <div className="grid grid-cols-2 gap-3">
+                  <input name="numberOfSteps" className={inputClass} type="number" min={1} max={8} defaultValue={5} />
+                  <input name="totalDurationDays" className={inputClass} type="number" min={0} max={90} defaultValue={14} />
+                </div>
+                <div className="flex flex-wrap gap-3 text-xs text-[#5f6a62]">
+                  {[
+                    ["sms", "Text"],
+                    ["email", "Email"],
+                    ["note", "Task"],
+                    ["call", "Call Reminder"],
+                  ].map(([value, label]) => (
+                    <label key={value} className="inline-flex items-center gap-2">
+                      <input name="channels" type="checkbox" value={value} defaultChecked={value === "sms" || value === "email"} /> {label}
+                    </label>
+                  ))}
+                </div>
+                <textarea name="prompt" className={inputClass} placeholder="Extra notes. Example: luxury condo buyers, keep it casual, push to phone appointment." rows={3} />
+                <Button>Generate Campaign</Button>
+                <p className="text-xs leading-5 text-[#68736a]">
+                  {aiSetting?.apiKey ? "Using your saved server-side LLM API key." : "Mock AI mode. Add an OpenAI API key in Settings for live generation."}
+                </p>
+              </form>
+            </div>
+          </details>
+
+          <details className="relative [&>summary::-webkit-details-marker]:hidden">
+            <summary className="cursor-pointer rounded border border-[#cfd6ca] bg-white px-3 py-2 text-sm font-medium text-[#17231d] hover:bg-[#f5f7f2]">
+              AI Plugin
+            </summary>
+            <div className="absolute right-0 z-30 mt-2 w-[min(94vw,520px)] rounded-md border border-[#d9ded5] bg-white p-4 shadow-xl">
+              <div className="space-y-3 text-sm text-[#5f6a62]">
+                <div>
+                  <h3 className="font-medium text-[#17231d]">Campaign generation API</h3>
+                  <p className="mt-1">Use this from Codex, Claude, OpenClaw, or another agent to draft a buyer, seller, tenant, or landlord sequence.</p>
+                </div>
+                <pre className="overflow-auto rounded border border-[#e4e8df] bg-[#fbfcfa] p-3 text-xs text-[#26352c]">{`POST /api/ai/campaigns/generate
+{
+  "contactType": "buyer",
+  "goal": "Convert buyer leads into appointments",
+  "tone": "direct",
+  "numberOfSteps": 5,
+  "totalDurationDays": 14,
+  "channels": ["sms", "email", "call"]
+}`}</pre>
+                <div className="grid gap-2 text-xs">
+                  <div className="rounded border border-[#e4e8df] bg-[#fbfcfa] p-2">Returns structured JSON. It does not auto-send messages.</div>
+                  <div className="rounded border border-[#e4e8df] bg-[#fbfcfa] p-2">Save an OpenAI API key in Settings for live generation. Without it, mock generation still works.</div>
+                  <div className="rounded border border-[#e4e8df] bg-[#fbfcfa] p-2">Future ChatGPT App/MCP OAuth can connect here later; this V1 uses server-side API keys.</div>
+                </div>
               </div>
-              <div className="flex flex-wrap gap-3 text-xs text-[#5f6a62]">
-                {[
-                  ["sms", "Text"],
-                  ["email", "Email"],
-                  ["note", "Task"],
-                  ["call", "Call Reminder"],
-                ].map(([value, label]) => (
-                  <label key={value} className="inline-flex items-center gap-2">
-                    <input name="channels" type="checkbox" value={value} defaultChecked={value === "sms" || value === "email"} /> {label}
-                  </label>
-                ))}
-              </div>
-              <textarea name="prompt" className={inputClass} placeholder="Extra notes. Example: luxury condo buyers, keep it casual, push to phone appointment." rows={3} />
-              <Button>Generate Campaign</Button>
-              <p className="text-xs leading-5 text-[#68736a]">
-                {aiSetting?.apiKey ? "Using your saved server-side LLM API key." : "Mock AI mode. Add an OpenAI API key in Settings for live generation."}
-              </p>
-            </form>
-          </div>
-        </details>
+            </div>
+          </details>
+        </div>
       </div>
 
       <div className="space-y-3">
