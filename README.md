@@ -66,3 +66,15 @@ curl -X POST http://localhost:3000/api/agent/commands \
 ```
 
 Allowed agent commands are `create_note`, `draft_email`, `draft_sms`, `create_task`, `update_stage`, `start_campaign`, `suggest_next_action`, and `request_human_approval`.
+
+## Twilio SMS
+
+Set these in `.env`:
+
+```bash
+TWILIO_ACCOUNT_SID="AC..."
+TWILIO_AUTH_TOKEN="..."
+TWILIO_FROM_NUMBER="+1..."
+```
+
+SMS sending remains approval-first. AI drafts are sent only after `Approve & Send`; if Twilio config or a contact phone is missing, the CRM logs a mock send instead of failing.

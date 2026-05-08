@@ -2,6 +2,20 @@ import type { MessageChannel, Prisma } from "@prisma/client";
 import { writeAudit } from "./audit";
 import { getPrisma, type DbClient } from "./prisma";
 
+function hasTwilioConfig() {
+  return Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_FROM_NUMBER);
+}
+
+async function sendTwilioSms(to: string, body: string) {
+  const twilio = (await import("twilio")).default;
+  const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+  return client.messages.create({
+    from: process.env.TWILIO_FROM_NUMBER,
+    to,
+    body,
+  });
+}
+
 export async function canSendMarketing(contactId: string, channel: MessageChannel, db: DbClient = getPrisma()) {
   const consent = await db.contactConsent.findUnique({
     where: { contactId_channel: { contactId, channel } },
@@ -48,6 +62,114 @@ export async function createMessageDraft(
   );
 
   return message;
+}
+
+export async function approveAndSendMessage(messageId: string, db: DbClient = getPrisma()) {
+  const message = await db.message.findUniqueOrThrow({
+    where: { id: messageId },
+    include: {
+      contact: {
+        include: {
+          phones: true,
+          consents: true,
+        },
+      },
+    },
+  });
+
+  if (!message.contactId || !message.contact) {
+    return db.message.update({
+      where: { id: messageId },
+      data: {
+        approvedByUser: true,
+        status: "sent_mock",
+        sentAt: new Date(),
+        metadata: { provider: "mock", reason: "no_contact" },
+      },
+    });
+  }
+
+  const consent = message.contact.consents.find((item) => item.channel === message.channel);
+  if (consent?.status === "opted_out") {
+    const blocked = await db.message.update({
+      where: { id: messageId },
+      data: {
+        approvedByUser: true,
+        status: "blocked_opt_out",
+        metadata: { provider: "none", blockedReason: "opted_out" },
+      },
+    });
+
+    await writeAudit(
+      {
+        workspaceId: message.workspaceId,
+        actorType: "system",
+        action: "message.blocked_opt_out",
+        targetType: "message",
+        targetId: message.id,
+        metadata: { channel: message.channel, contactId: message.contactId },
+      },
+      db,
+    );
+    return blocked;
+  }
+
+  if (message.channel === "sms" && hasTwilioConfig() && message.contact.phones[0]?.phone) {
+    const sent = await sendTwilioSms(message.contact.phones[0].phone, message.body);
+    const updated = await db.message.update({
+      where: { id: messageId },
+      data: {
+        approvedByUser: true,
+        status: "sent",
+        sentAt: new Date(),
+        metadata: {
+          provider: "twilio",
+          twilioSid: sent.sid,
+          twilioStatus: sent.status,
+        },
+      },
+    });
+
+    await writeAudit(
+      {
+        workspaceId: message.workspaceId,
+        actorType: "user",
+        action: "message.sent_twilio",
+        targetType: "message",
+        targetId: message.id,
+        metadata: { channel: message.channel, contactId: message.contactId, twilioSid: sent.sid },
+      },
+      db,
+    );
+    return updated;
+  }
+
+  const updated = await db.message.update({
+    where: { id: messageId },
+    data: {
+      approvedByUser: true,
+      status: "sent_mock",
+      sentAt: new Date(),
+      metadata: {
+        provider: "mock",
+        reason: message.channel === "sms" ? "missing_twilio_config_or_phone" : "email_provider_not_configured",
+      },
+    },
+  });
+
+  await writeAudit(
+    {
+      workspaceId: message.workspaceId,
+      actorType: "user",
+      action: "message.sent_mock",
+      targetType: "message",
+      targetId: message.id,
+      metadata: { channel: message.channel, contactId: message.contactId },
+    },
+    db,
+  );
+
+  return updated;
 }
 
 export async function mockSendOrDraft(

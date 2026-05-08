@@ -7,11 +7,29 @@ import { intakeLead } from "@/lib/intake";
 import { getPrisma } from "@/lib/prisma";
 import { getDefaultWorkspaceId } from "@/lib/workspace";
 import { writeAudit } from "@/lib/audit";
+import { generateClientForLifeCheckin } from "@/lib/ai";
+import { approveAndSendMessage } from "@/lib/messages";
 
 function requiredString(formData: FormData, key: string) {
   const value = formData.get(key);
   if (typeof value !== "string" || !value.trim()) throw new Error(`${key} is required`);
   return value.trim();
+}
+
+function optionalString(formData: FormData, key: string) {
+  const value = formData.get(key);
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+async function getDefaultOwnerId(workspaceId: string) {
+  const db = getPrisma();
+  const member = await db.workspaceMember.findFirst({
+    where: { workspaceId },
+    include: { user: true },
+    orderBy: { createdAt: "asc" },
+  });
+
+  return member?.userId;
 }
 
 export async function addNoteAction(formData: FormData) {
@@ -214,14 +232,190 @@ export async function markTaskDoneAction(formData: FormData) {
   if (task.contactId) revalidatePath(`/people/${task.contactId}`);
 }
 
+export async function logCallAction(formData: FormData) {
+  const db = getPrisma();
+  const workspaceId = await getDefaultWorkspaceId();
+  const contactId = optionalString(formData, "contactId");
+  const dealId = optionalString(formData, "dealId");
+  const body = optionalString(formData, "body") ?? "Call action logged from Today.";
+  if (!contactId && !dealId) throw new Error("contactId or dealId is required");
+
+  const contact =
+    contactId
+      ? await db.contact.findUnique({ where: { id: contactId }, include: { phones: true } })
+      : dealId
+        ? (await db.deal.findUnique({
+            where: { id: dealId },
+            include: { participants: { include: { contact: { include: { phones: true } } } } },
+          }))?.participants[0]?.contact
+        : null;
+
+  const message = await db.message.create({
+    data: {
+      workspaceId,
+      contactId: contact?.id,
+      channel: "call",
+      direction: "outbound",
+      status: "logged",
+      body,
+      sentAt: new Date(),
+      metadata: { source: "today", phone: contact?.phones[0]?.phone ?? null },
+    },
+  });
+
+  if (contact?.id) {
+    await db.contact.update({
+      where: { id: contact.id },
+      data: {
+        lastTouchAt: new Date(),
+        nextAction: "Send follow-up message after call attempt",
+        nextActionType: "sms",
+        nextActionDueAt: new Date(Date.now() + 4 * 60 * 60 * 1000),
+        nextActionReason: "Call was logged from Today",
+      },
+    });
+  }
+
+  if (dealId) {
+    await db.deal.update({
+      where: { id: dealId },
+      data: {
+        nextAction: "Send client update after call attempt",
+        nextActionDueAt: new Date(Date.now() + 4 * 60 * 60 * 1000),
+        riskLevel: "normal",
+      },
+    });
+  }
+
+  await writeAudit({ workspaceId, actorType: "user", action: "call.logged", targetType: "message", targetId: message.id }, db);
+  revalidatePath("/today");
+  if (contact?.id) revalidatePath(`/people/${contact.id}`);
+  if (dealId) revalidatePath("/deals");
+}
+
+export async function snoozeContactAction(formData: FormData) {
+  const db = getPrisma();
+  const workspaceId = await getDefaultWorkspaceId();
+  const contactId = requiredString(formData, "contactId");
+  const hours = Number(formData.get("hours") ?? 24);
+  await db.contact.update({
+    where: { id: contactId },
+    data: {
+      nextActionDueAt: new Date(Date.now() + hours * 60 * 60 * 1000),
+      nextActionReason: `Snoozed for ${hours} hours`,
+    },
+  });
+  await writeAudit({ workspaceId, actorType: "user", action: "contact.snoozed", targetType: "contact", targetId: contactId, metadata: { hours } }, db);
+  revalidatePath("/today");
+  revalidatePath(`/people/${contactId}`);
+}
+
+export async function assignContactAction(formData: FormData) {
+  const db = getPrisma();
+  const workspaceId = await getDefaultWorkspaceId();
+  const contactId = requiredString(formData, "contactId");
+  const ownerId = optionalString(formData, "ownerId") ?? (await getDefaultOwnerId(workspaceId));
+  if (!ownerId) throw new Error("No workspace user available to assign");
+
+  await db.contact.update({
+    where: { id: contactId },
+    data: {
+      ownerId,
+      nextActionReason: "Assigned from Today",
+    },
+  });
+  await writeAudit({ workspaceId, actorType: "user", actorId: ownerId, action: "contact.assigned", targetType: "contact", targetId: contactId }, db);
+  revalidatePath("/today");
+  revalidatePath(`/people/${contactId}`);
+}
+
+export async function snoozeDealAction(formData: FormData) {
+  const db = getPrisma();
+  const workspaceId = await getDefaultWorkspaceId();
+  const dealId = requiredString(formData, "dealId");
+  const hours = Number(formData.get("hours") ?? 24);
+  await db.deal.update({
+    where: { id: dealId },
+    data: {
+      nextActionDueAt: new Date(Date.now() + hours * 60 * 60 * 1000),
+      riskLevel: "normal",
+    },
+  });
+  await writeAudit({ workspaceId, actorType: "user", action: "deal.snoozed", targetType: "deal", targetId: dealId, metadata: { hours } }, db);
+  revalidatePath("/today");
+  revalidatePath("/deals");
+}
+
+export async function assignDealAction(formData: FormData) {
+  const db = getPrisma();
+  const workspaceId = await getDefaultWorkspaceId();
+  const dealId = requiredString(formData, "dealId");
+  const ownerId = optionalString(formData, "ownerId") ?? (await getDefaultOwnerId(workspaceId));
+  if (!ownerId) throw new Error("No workspace user available to assign");
+
+  const deal = await db.deal.findUnique({
+    where: { id: dealId },
+    include: { participants: true },
+  });
+  const contactId = deal?.primaryContactId ?? deal?.participants[0]?.contactId;
+  if (contactId) {
+    await db.contact.update({ where: { id: contactId }, data: { ownerId } });
+  }
+  await writeAudit({ workspaceId, actorType: "user", actorId: ownerId, action: "deal.assigned", targetType: "deal", targetId: dealId, metadata: { contactId } }, db);
+  revalidatePath("/today");
+  revalidatePath("/deals");
+  if (contactId) revalidatePath(`/people/${contactId}`);
+}
+
+export async function completeLifecycleTouchAction(formData: FormData) {
+  const db = getPrisma();
+  const workspaceId = await getDefaultWorkspaceId();
+  const eventId = requiredString(formData, "eventId");
+  const event = await db.clientLifecycleEvent.findUniqueOrThrow({
+    where: { id: eventId },
+    include: { contact: { include: { emails: true, phones: true } } },
+  });
+  const body = event.messageDraft ?? (await generateClientForLifeCheckin(event.contact));
+  const channel = event.contact.phones[0] ? "sms" : "email";
+
+  const message = await db.message.create({
+    data: {
+      workspaceId,
+      contactId: event.contactId,
+      channel,
+      status: "sent_mock",
+      body,
+      aiGenerated: true,
+      approvedByUser: true,
+      sentAt: new Date(),
+      metadata: { provider: "mock", lifecycleEventId: event.id },
+    },
+  });
+
+  await db.clientLifecycleEvent.update({
+    where: { id: eventId },
+    data: { status: "done" },
+  });
+  await db.contact.update({
+    where: { id: event.contactId },
+    data: {
+      lastTouchAt: new Date(),
+      nextAction: "Next quarterly client-for-life touch",
+      nextActionType: "email",
+      nextActionDueAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+      nextActionReason: "Client-for-life touch completed",
+    },
+  });
+  await writeAudit({ workspaceId, actorType: "user", action: "client_lifecycle.completed", targetType: "client_lifecycle_event", targetId: eventId, metadata: { messageId: message.id } }, db);
+  revalidatePath("/today");
+  revalidatePath(`/people/${event.contactId}`);
+}
+
 export async function approveDraftAction(formData: FormData) {
   const db = getPrisma();
   const workspaceId = await getDefaultWorkspaceId();
   const messageId = requiredString(formData, "messageId");
-  const message = await db.message.update({
-    where: { id: messageId },
-    data: { approvedByUser: true, status: "sent_mock", sentAt: new Date() },
-  });
+  const message = await approveAndSendMessage(messageId, db);
   if (message.contactId) {
     await db.contact.update({
       where: { id: message.contactId },
@@ -234,7 +428,7 @@ export async function approveDraftAction(formData: FormData) {
       },
     });
   }
-  await writeAudit({ workspaceId, actorType: "user", action: "message.approved_sent", targetType: "message", targetId: messageId }, db);
+  await writeAudit({ workspaceId, actorType: "user", action: "message.approved", targetType: "message", targetId: messageId }, db);
   revalidatePath("/today");
 }
 

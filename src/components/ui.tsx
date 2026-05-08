@@ -20,8 +20,8 @@ export function Badge({ children }: { children: React.ReactNode }) {
   return <span className="rounded bg-[#e9efe6] px-2 py-1 text-xs font-medium text-[#304037]">{children}</span>;
 }
 
-export function Button({ children }: { children: React.ReactNode }) {
-  return <button className="rounded bg-[#17231d] px-3 py-2 text-sm font-medium text-white hover:bg-[#26382f]">{children}</button>;
+export function Button({ children, type = "submit" }: { children: React.ReactNode; type?: "button" | "submit" | "reset" }) {
+  return <button type={type} className="rounded bg-[#17231d] px-3 py-2 text-sm font-medium text-white hover:bg-[#26382f]">{children}</button>;
 }
 
 export const inputClass = "w-full rounded border border-[#cfd6ca] bg-white px-3 py-2 text-sm outline-none focus:border-[#72806f]";
