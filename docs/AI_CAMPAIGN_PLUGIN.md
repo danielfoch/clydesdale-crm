@@ -1,6 +1,6 @@
-# Clydesdale AI Campaign Plugin
+# Warhorse AI Campaign Plugin
 
-Use this API when an external AI agent needs to draft a simple nurture sequence for Clydesdale CRM.
+Use this API when an external AI agent needs to draft a simple nurture sequence for Warhorse CRM.
 
 ## Generate A Campaign
 

@@ -45,7 +45,7 @@ export async function startTwilioVoiceCall(to: string) {
   return client.calls.create({
     to: agentNumber,
     from,
-    twiml: `<Response><Say>Connecting your Clydesdale CRM call.</Say><Dial callerId="${escapeXml(from)}">${escapeXml(to)}</Dial></Response>`,
+    twiml: `<Response><Say>Connecting your Warhorse CRM call.</Say><Dial callerId="${escapeXml(from)}">${escapeXml(to)}</Dial></Response>`,
   });
 }
 

@@ -66,7 +66,7 @@ export async function generateCampaignRecipeWithAi(
     body: JSON.stringify({
       model,
       instructions: "You create simple real estate CRM campaigns. Return only valid JSON. No markdown.",
-      input: `Create a ${contactType} lead nurture campaign for Clydesdale CRM. It must be simple, numbered by days, draft-only, and designed to move the lead toward an appointment. Valid channels: sms, email, note for a task, call for a call reminder. User notes: ${prompt || "none"}`,
+      input: `Create a ${contactType} lead nurture campaign for Warhorse CRM. It must be simple, numbered by days, draft-only, and designed to move the lead toward an appointment. Valid channels: sms, email, note for a task, call for a call reminder. User notes: ${prompt || "none"}`,
       text: {
         format: {
           type: "json_schema",

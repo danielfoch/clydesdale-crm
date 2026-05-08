@@ -1,6 +1,6 @@
 # AI Agent Recommended Actions
 
-This document explains how an external AI agent should use Clydesdale CRM.
+This document explains how an external AI agent should use Warhorse CRM.
 
 ## Job
 

@@ -20,7 +20,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
           <span className="grid size-9 place-items-center rounded bg-[#17231d] text-white">
             <Bot size={18} />
           </span>
-          Clydesdale CRM
+          Warhorse CRM
         </Link>
         <nav className="space-y-1">
           {navItems.map((item) => (

@@ -66,6 +66,8 @@ export async function fireOutboundWebhooks(
         method: "POST",
         headers: {
           "content-type": "application/json",
+          "x-warhorse-signature": signature,
+          // Keep the old header for existing agent/webhook integrations.
           "x-clydesdale-signature": signature,
         },
         body,

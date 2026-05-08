@@ -3,7 +3,12 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from "crypt
 const PREFIX = "enc:v1:";
 
 function secretKey() {
-  const source = process.env.CLYDESDALE_SECRET_KEY || process.env.WEBHOOK_SIGNING_SECRET || process.env.DATABASE_URL || "clydesdale-local-dev-secret";
+  const source =
+    process.env.WARHORSE_SECRET_KEY ||
+    process.env.CLYDESDALE_SECRET_KEY ||
+    process.env.WEBHOOK_SIGNING_SECRET ||
+    process.env.DATABASE_URL ||
+    "warhorse-local-dev-secret";
   return createHash("sha256").update(source).digest();
 }
 

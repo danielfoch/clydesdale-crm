@@ -69,12 +69,12 @@ export async function classifyLead(lead: LeadInput): Promise<LeadClassification>
 export async function draftFirstResponse(contact: { name: string; type?: string | null }, channel: "email" | "sms") {
   const firstName = contact.name.split(" ")[0] || "there";
   if (channel === "sms") {
-    return `Hi ${firstName}, it is Clydesdale CRM. I can help with your ${contact.type ?? "real estate"} search. Are you free for a quick call today?`;
+    return `Hi ${firstName}, it is Warhorse CRM. I can help with your ${contact.type ?? "real estate"} search. Are you free for a quick call today?`;
   }
 
   return `Hi ${firstName},\n\nThanks for reaching out. I can help with your ${
     contact.type ?? "real estate"
-  } plans and I have a couple of quick questions so I can point you in the right direction.\n\nWhat timing are you working toward, and what area should we focus on first?\n\nBest,\nClydesdale CRM`;
+  } plans and I have a couple of quick questions so I can point you in the right direction.\n\nWhat timing are you working toward, and what area should we focus on first?\n\nBest,\nWarhorse CRM`;
 }
 
 export async function draftMessage(contact: { name: string; type?: string | null }, channel: "email" | "sms", purpose = "next action") {

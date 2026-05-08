@@ -1,4 +1,4 @@
-# Clydesdale CRM
+# Warhorse CRM
 
 Lean realtor revenue machine built with Next.js App Router, TypeScript, Tailwind, Prisma, and Postgres.
 
@@ -7,9 +7,10 @@ The product is organized around one rule: every lead, client, deal, and past cli
 ## Main Screens
 
 - `Today`: new leads, due follow-ups, AI drafts to approve, deals at risk, past clients due.
-- `People`: searchable relationship list and fast lead add.
-- `Deals`: buyer, tenant, seller, and landlord pipeline with next action and risk.
-- `Campaigns`: recipes, sentence workflows, RSS/Substack content repurposing, newsletter drafts.
+- `Contacts`: simple list for fast calls, texts, emails, and contact details.
+- `Pipeline`: pre-client board for moving people from lead to client.
+- `Deals`: active client board with next action and risk.
+- `Campaigns`: simple nurture sequences for buyers, sellers, tenants, and landlords.
 - `Settings`: team, sources, Gmail/Twilio placeholders, AI, webhooks, compliance.
 
 ## Local Setup

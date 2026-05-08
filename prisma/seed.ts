@@ -71,10 +71,10 @@ async function main() {
   await clear();
 
   const workspace = await prisma.workspace.create({
-    data: { name: "Clydesdale Realty" },
+    data: { name: "Warhorse Realty" },
   });
   const user = await prisma.user.create({
-    data: { name: "Daniel Agent", email: "agent@clydesdale.local" },
+    data: { name: "Daniel Agent", email: "agent@warhorse.local" },
   });
   await prisma.workspaceMember.create({ data: { workspaceId: workspace.id, userId: user.id, role: "owner" } });
 
@@ -303,7 +303,7 @@ async function main() {
   }
 
   const source = await prisma.contentSource.create({
-    data: { workspaceId: workspace.id, name: "Clydesdale Market Notes", url: "https://example.substack.com/feed", kind: "rss", lastFetchedAt: new Date() },
+    data: { workspaceId: workspace.id, name: "Warhorse Market Notes", url: "https://example.substack.com/feed", kind: "rss", lastFetchedAt: new Date() },
   });
   for (const title of ["Spring inventory is rising", "What buyers should watch this week", "Rental market check-in"]) {
     await prisma.contentPost.create({
@@ -315,7 +315,7 @@ async function main() {
     data: {
       workspaceId: workspace.id,
       name: "External AI agent",
-      url: "http://localhost:43111/clydesdale-agent",
+      url: "http://localhost:43111/warhorse-agent",
       secret: "seed-secret",
       events: ["lead.received", "lead.hot", "workflow.ai_step_requested", "newsletter.ready"],
     },
