@@ -63,6 +63,42 @@ function BadgePill({ children, className = "" }: { children: React.ReactNode; cl
   return <span className={`rounded px-2 py-1 text-xs font-medium ${className}`}>{children}</span>;
 }
 
+function cardColorClass(type: string) {
+  switch (type) {
+    case "buyer":
+      return "border-l-[#7aa7d9] bg-[#f7fbff]";
+    case "tenant":
+      return "border-l-[#6bbac8] bg-[#f5fcfd]";
+    case "seller":
+      return "border-l-[#d98a7a] bg-[#fff8f7]";
+    case "landlord":
+      return "border-l-[#d8aa55] bg-[#fffaf0]";
+    default:
+      return "border-l-[#aab2aa] bg-white";
+  }
+}
+
+const legendItems = [
+  { label: "Buyer", className: "border-l-[#7aa7d9] bg-[#f7fbff]" },
+  { label: "Tenant", className: "border-l-[#6bbac8] bg-[#f5fcfd]" },
+  { label: "Seller", className: "border-l-[#d98a7a] bg-[#fff8f7]" },
+  { label: "Landlord", className: "border-l-[#d8aa55] bg-[#fffaf0]" },
+  { label: "Unknown", className: "border-l-[#aab2aa] bg-white" },
+];
+
+function DealColorLegend() {
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-[#68736a]" aria-label="Deal card color legend">
+      <span className="font-medium text-[#46534b]">Card colors</span>
+      {legendItems.map((item) => (
+        <span key={item.label} className={`inline-flex items-center rounded border border-[#d9ded5] border-l-4 px-2 py-1 ${item.className}`}>
+          {item.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function stageFormData(dealId: string, stage: string) {
   const formData = new FormData();
   formData.set("dealId", dealId);
@@ -115,7 +151,7 @@ function DealCard({
         event.dataTransfer.setData("text/plain", deal.id);
         event.dataTransfer.effectAllowed = "move";
       }}
-      className="rounded-md border border-[#e1e6dc] bg-white p-3 shadow-sm transition hover:-translate-y-px hover:shadow-md"
+      className={`rounded-md border border-l-4 border-[#e1e6dc] p-3 shadow-sm transition hover:-translate-y-px hover:shadow-md ${cardColorClass(deal.type)}`}
     >
       <div className="flex items-start gap-2">
         <GripVertical className="mt-0.5 shrink-0 text-[#a0a99f]" size={14} aria-hidden />
@@ -237,48 +273,51 @@ export function DealsBoard({ deals }: { deals: BoardDeal[] }) {
   }
 
   return (
-    <div className="overflow-x-auto pb-2">
-      <div className="grid min-w-[1120px] grid-cols-4 gap-4">
-        {dealPipelineStages.map((stage) => {
-          const cards = deals.filter((deal) => stage.dealStages.includes(deal.stage as never));
-          const isOver = overStage === stage.key;
-          return (
-            <div
-              key={stage.key}
-              onDragOver={(event) => {
-                event.preventDefault();
-                event.dataTransfer.dropEffect = "move";
-                setOverStage(stage.key);
-              }}
-              onDragLeave={() => setOverStage(null)}
-              onDrop={(event) => {
-                event.preventDefault();
-                const dealId = event.dataTransfer.getData("text/plain") || draggingId;
-                if (dealId) moveDeal(dealId, stage.key);
-              }}
-              className={isOver ? "rounded-md ring-2 ring-[#17231d]/25" : "rounded-md"}
-            >
-              <Panel title={`${stage.label} · ${cards.length}`}>
-                <p className="mb-3 min-h-10 text-xs text-[#68736a]">{stage.description}</p>
-                <div className={`space-y-3 rounded-md transition ${isOver ? "bg-[#edf1e9] p-1.5" : ""}`}>
-                  {cards.length ? cards.map((deal) => (
-                    <div key={deal.id} onDragStart={() => setDraggingId(deal.id)} onDragEnd={() => { setDraggingId(null); setOverStage(null); }}>
-                      <DealCard
-                        deal={deal}
-                        expanded={expandedId === deal.id}
-                        onToggle={() => setExpandedId(expandedId === deal.id ? null : deal.id)}
-                      />
-                    </div>
-                  )) : (
-                    <div className="rounded border border-dashed border-[#d9ded5] p-4 text-sm text-[#68736a]">Drop deals here.</div>
-                  )}
-                </div>
-                {isPending ? <div className="mt-2 text-[11px] text-[#68736a]">Moving...</div> : null}
-              </Panel>
-            </div>
-          );
-        })}
+    <>
+      <DealColorLegend />
+      <div className="overflow-x-auto pb-2">
+        <div className="grid min-w-[1120px] grid-cols-4 gap-4">
+          {dealPipelineStages.map((stage) => {
+            const cards = deals.filter((deal) => stage.dealStages.includes(deal.stage as never));
+            const isOver = overStage === stage.key;
+            return (
+              <div
+                key={stage.key}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                  setOverStage(stage.key);
+                }}
+                onDragLeave={() => setOverStage(null)}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  const dealId = event.dataTransfer.getData("text/plain") || draggingId;
+                  if (dealId) moveDeal(dealId, stage.key);
+                }}
+                className={isOver ? "rounded-md ring-2 ring-[#17231d]/25" : "rounded-md"}
+              >
+                <Panel title={`${stage.label} · ${cards.length}`}>
+                  <p className="mb-3 min-h-10 text-xs text-[#68736a]">{stage.description}</p>
+                  <div className={`space-y-3 rounded-md transition ${isOver ? "bg-[#edf1e9] p-1.5" : ""}`}>
+                    {cards.length ? cards.map((deal) => (
+                      <div key={deal.id} onDragStart={() => setDraggingId(deal.id)} onDragEnd={() => { setDraggingId(null); setOverStage(null); }}>
+                        <DealCard
+                          deal={deal}
+                          expanded={expandedId === deal.id}
+                          onToggle={() => setExpandedId(expandedId === deal.id ? null : deal.id)}
+                        />
+                      </div>
+                    )) : (
+                      <div className="rounded border border-dashed border-[#d9ded5] p-4 text-sm text-[#68736a]">Drop deals here.</div>
+                    )}
+                  </div>
+                  {isPending ? <div className="mt-2 text-[11px] text-[#68736a]">Moving...</div> : null}
+                </Panel>
+              </div>
+            );
+          })}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
