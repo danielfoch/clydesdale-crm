@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { Bot, BriefcaseBusiness, CalendarCheck, Settings, UsersRound, Megaphone, Phone } from "lucide-react";
+import { Bot, BriefcaseBusiness, CalendarCheck, Settings, UsersRound, Megaphone, Phone, Trophy } from "lucide-react";
 
 const navItems = [
   { href: "/today", label: "Today", icon: CalendarCheck },
   { href: "/pipeline", label: "Pipeline", icon: UsersRound },
   { href: "/deals", label: "Deals", icon: BriefcaseBusiness },
   { href: "/campaigns", label: "Campaigns", icon: Megaphone },
+  { href: "/leaderboard", label: "Leaderboard", icon: Trophy },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
