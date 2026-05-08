@@ -4,13 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
-  Building2,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
-  Flame,
   GripVertical,
-  Home,
   Mail,
   MessageSquareText,
   Phone,
@@ -29,8 +26,8 @@ import {
 } from "@/app/actions";
 import { inputClass, Panel } from "@/components/ui";
 import {
-  contactTypeBadgeClass,
   contactTypeLabel,
+  formatDue,
   formatDueDelta,
   leadPipelineStages,
   stageLabel,
@@ -77,22 +74,37 @@ function IconChip({
   className?: string;
 }) {
   return (
-    <span title={label} aria-label={label} className={`inline-flex h-7 min-w-7 items-center justify-center rounded px-1.5 text-[11px] font-semibold ${className}`}>
+    <span title={label} aria-label={label} className={`inline-flex h-5 min-w-6 items-center justify-center rounded px-1 text-[10px] font-bold leading-none transition hover:scale-105 ${className}`}>
       {children}
     </span>
   );
 }
 
-function typeIcon(type: string) {
-  if (type === "seller" || type === "landlord") return <Building2 size={14} />;
-  if (type === "buyer" || type === "tenant") return <Home size={14} />;
-  return <UserRound size={14} />;
+function cardColorClass(type: string) {
+  switch (type) {
+    case "buyer":
+      return "border-l-[#7aa7d9] bg-[#f7fbff]";
+    case "tenant":
+      return "border-l-[#6bbac8] bg-[#f5fcfd]";
+    case "seller":
+      return "border-l-[#d98a7a] bg-[#fff8f7]";
+    case "landlord":
+      return "border-l-[#d8aa55] bg-[#fffaf0]";
+    default:
+      return "border-l-[#aab2aa] bg-white";
+  }
 }
 
 function urgencyClass(score: number) {
   if (score >= 75) return "bg-[#fef3c7] text-[#78350f]";
   if (score >= 40) return "bg-[#e0f2fe] text-[#075985]";
   return "bg-[#ecfdf5] text-[#166534]";
+}
+
+function urgencyShort(score: number) {
+  if (score >= 75) return "H";
+  if (score >= 40) return "M";
+  return "L";
 }
 
 function dueClass(value: string) {
@@ -144,7 +156,9 @@ function ContactCard({
   const openTasks = person.tasks.filter((task) => task.status === "open").slice(0, 2);
   const dealType = ["buyer", "tenant", "seller", "landlord"].includes(person.type) ? person.type : "buyer";
   const dueDelta = formatDueDelta(person.nextActionDueAt);
+  const dueTitle = `Due: ${formatDue(new Date(person.nextActionDueAt))}`;
   const lastTouch = person.lastTouchAt ? formatDueDelta(person.lastTouchAt) : "none";
+  const typeLabel = contactTypeLabel(person.type);
 
   return (
     <article
@@ -153,48 +167,45 @@ function ContactCard({
         event.dataTransfer.setData("text/plain", person.id);
         event.dataTransfer.effectAllowed = "move";
       }}
-      className="group rounded-md border border-[#e1e6dc] bg-white p-2.5 shadow-sm transition hover:-translate-y-px hover:shadow-md"
+      title={typeLabel}
+      className={`group rounded-md border border-l-4 border-[#e1e6dc] p-2 shadow-sm transition hover:-translate-y-px hover:shadow-md ${cardColorClass(person.type)}`}
     >
-      <div className="flex items-start gap-2">
-        <GripVertical className="mt-0.5 shrink-0 text-[#a0a99f]" size={14} aria-hidden />
+      <div className="flex items-start gap-1.5">
+        <GripVertical className="mt-0.5 shrink-0 text-[#a0a99f]" size={12} aria-hidden />
         <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
+          <div className="flex items-start justify-between gap-1.5">
             <div className="min-w-0">
-              <Link href={`/people/${person.id}`} className="block truncate text-sm font-semibold hover:underline">
-                {person.name}
-              </Link>
-              <div className="mt-0.5 truncate text-[11px] text-[#68736a]">{primaryContact}</div>
+              <div className="flex min-w-0 items-center gap-1.5">
+                <Link href={`/people/${person.id}`} className="truncate text-xs font-semibold hover:underline">
+                  {person.name}
+                </Link>
+                <IconChip label={dueTitle} className={dueClass(dueDelta)}>
+                  {dueDelta}
+                </IconChip>
+                <IconChip label={`Urgency: ${urgencyLabel(person.urgencyScore)} (${person.urgencyScore}/100)`} className={urgencyClass(person.urgencyScore)}>
+                  {urgencyShort(person.urgencyScore)}
+                </IconChip>
+              </div>
+              <div className="mt-0.5 truncate text-[10px] text-[#68736a]" title={`${typeLabel} · ${primaryContact}`}>{typeLabel} · {primaryContact}</div>
             </div>
             <button
               type="button"
               onClick={onToggle}
               aria-expanded={expanded}
               aria-label={expanded ? `Collapse ${person.name}` : `Expand ${person.name}`}
-              className="grid size-7 shrink-0 place-items-center rounded border border-[#d9ded5] text-[#46534b] hover:bg-[#f5f7f2]"
+              className="grid size-6 shrink-0 place-items-center rounded border border-[#d9ded5] bg-white/70 text-[#46534b] hover:bg-white"
             >
-              {expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+              {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
             </button>
           </div>
 
-          <div className="mt-2 flex items-center gap-1.5">
-            <IconChip label={contactTypeLabel(person.type)} className={contactTypeBadgeClass(person.type)}>
-              {typeIcon(person.type)}
-            </IconChip>
-            <IconChip label={urgencyLabel(person.urgencyScore)} className={urgencyClass(person.urgencyScore)}>
-              <Flame size={13} />
-            </IconChip>
-            <IconChip label={`Due ${dueDelta}`} className={dueClass(dueDelta)}>
-              {dueDelta}
-            </IconChip>
-          </div>
-
-          <p className="mt-2 line-clamp-2 text-xs leading-5 text-[#26352c]">{person.nextAction}</p>
+          <p className="mt-1.5 line-clamp-2 text-[11px] leading-4 text-[#26352c]">{person.nextAction}</p>
         </div>
       </div>
 
       {expanded ? (
-        <div className="mt-3 space-y-3 border-t border-[#edf0ea] pt-3">
-          <div className="grid gap-1.5 rounded bg-[#f6f7f4] p-2.5 text-xs text-[#5f6a62]">
+        <div className="mt-2.5 space-y-2.5 border-t border-[#edf0ea] pt-2.5">
+          <div className="grid gap-1 rounded bg-white/70 p-2 text-xs text-[#5f6a62]">
             <div><span className="font-medium text-[#17231d]">Stage:</span> {stageLabel(person.stage)}</div>
             <div><span className="font-medium text-[#17231d]">Source:</span> {person.source ?? "Unknown"}</div>
             <div><span className="font-medium text-[#17231d]">Last touch:</span> {lastTouch}</div>
@@ -291,7 +302,7 @@ export function PipelineBoard({ people }: { people: PipelinePerson[] }) {
 
   return (
     <div className="overflow-x-auto pb-2">
-      <div className="grid min-w-[980px] grid-cols-4 gap-3">
+      <div className="grid min-w-[880px] grid-cols-4 gap-2.5">
         {leadPipelineStages.map((stage) => {
           const cards = people.filter((person) => stage.contactStages.includes(person.stage as never));
           const isOver = overStage === stage.key;
@@ -312,7 +323,7 @@ export function PipelineBoard({ people }: { people: PipelinePerson[] }) {
               className={isOver ? "rounded-md ring-2 ring-[#17231d]/25" : "rounded-md"}
             >
               <Panel title={`${stage.label} · ${cards.length}`}>
-                <p className="mb-2 min-h-8 text-[11px] leading-4 text-[#68736a]">{stage.description}</p>
+                <p className="mb-2 min-h-7 text-[10px] leading-4 text-[#68736a]">{stage.description}</p>
                 <div className={`space-y-2 rounded-md transition ${isOver ? "bg-[#edf1e9] p-1.5" : ""}`}>
                   {cards.length ? cards.map((person) => (
                     <div key={person.id} onDragStart={() => setDraggingId(person.id)} onDragEnd={() => { setDraggingId(null); setOverStage(null); }}>
