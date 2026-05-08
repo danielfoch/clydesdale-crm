@@ -71,10 +71,30 @@ function consentAllows(consents: { channel: MessageChannel; status: string }[], 
   return !consents.some((consent) => consent.channel === channel && consent.status === "opted_out");
 }
 
+function evidenceArray(value: unknown) {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
 export async function getTodayRecommendations(db: DbClient, workspaceId: string) {
   const now = new Date();
   const soon = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
-  const [contacts, overdueTasks, drafts, deals, lifecycle] = await Promise.all([
+  const [storedActions, contacts, overdueTasks, drafts, deals, lifecycle] = await Promise.all([
+    db.recommendedAction.findMany({
+      where: {
+        workspaceId,
+        OR: [
+          { status: "open" },
+          { status: "snoozed", snoozedUntil: { lte: now } },
+          { status: { in: ["done", "dismissed", "stale"] } },
+        ],
+      },
+      include: {
+        contact: { include: { emails: true, phones: true } },
+        deal: true,
+      },
+      orderBy: [{ score: "desc" }, { dueAt: "asc" }],
+      take: 80,
+    }),
     db.contact.findMany({
       where: {
         workspaceId,
@@ -121,6 +141,34 @@ export async function getTodayRecommendations(db: DbClient, workspaceId: string)
   ]);
 
   const recommendations = new Map<string, TodayRecommendation>();
+  const suppressedKeys = new Set(
+    storedActions
+      .filter((action) => ["done", "dismissed", "stale"].includes(action.status) || (action.status === "snoozed" && action.snoozedUntil && action.snoozedUntil > now))
+      .map((action) => action.externalKey),
+  );
+
+  for (const action of storedActions) {
+    if (action.status !== "open" && !(action.status === "snoozed" && action.snoozedUntil && action.snoozedUntil <= now)) continue;
+    recommendations.set(action.externalKey, {
+      id: action.externalKey,
+      title: action.title,
+      reason: action.reason,
+      evidence: evidenceArray(action.evidence),
+      suggestedMessage: action.suggestedMessage ?? undefined,
+      priority: action.priority as Priority,
+      score: action.score,
+      confidence: action.confidence,
+      dueAt: action.dueAt,
+      actionType: action.actionType as RecommendedActionType,
+      contact: action.contact ? safeContact(action.contact) : undefined,
+      deal: action.deal ? { id: action.deal.id, name: action.deal.name, stage: action.deal.stage, type: action.deal.type } : undefined,
+      taskId: action.taskId ?? undefined,
+    });
+  }
+
+  function setGenerated(key: string, action: TodayRecommendation) {
+    if (!suppressedKeys.has(key)) recommendations.set(key, action);
+  }
 
   for (const contact of contacts) {
     const callCount = contact.messages.filter((message) => message.channel === "call").length;
@@ -130,7 +178,7 @@ export async function getTodayRecommendations(db: DbClient, workspaceId: string)
 
     if (["new", "attempting_contact"].includes(contact.stage) && callCount === 0) {
       const score = Math.min(100, base + 25);
-      recommendations.set(`lead-contact-${contact.id}`, {
+      setGenerated(`lead-contact-${contact.id}`, {
         id: `lead-contact-${contact.id}`,
         title: contact.urgencyScore >= 75 ? `Call ${contact.name}` : `Respond to ${contact.name}`,
         reason: contact.urgencyScore >= 75
@@ -154,7 +202,7 @@ export async function getTodayRecommendations(db: DbClient, workspaceId: string)
 
     if (contact.stage === "nurturing" && contact.nextActionDueAt <= soon) {
       const score = Math.min(92, base + 12);
-      recommendations.set(`relationship-${contact.id}`, {
+      setGenerated(`relationship-${contact.id}`, {
         id: `relationship-${contact.id}`,
         title: `Keep ${contact.name} moving`,
         reason: "They are engaged, but no client-work has started.",
@@ -171,7 +219,7 @@ export async function getTodayRecommendations(db: DbClient, workspaceId: string)
 
     if (contact.stage === "appointment_set" && contact.nextActionDueAt <= soon) {
       const score = Math.min(96, base + 18);
-      recommendations.set(`prospect-${contact.id}`, {
+      setGenerated(`prospect-${contact.id}`, {
         id: `prospect-${contact.id}`,
         title: `Set appointment with ${contact.name}`,
         reason: "They are receiving value and should be moved toward a client meeting.",
@@ -187,7 +235,7 @@ export async function getTodayRecommendations(db: DbClient, workspaceId: string)
     }
 
     if (contact.stage === "active_client" && contact.primaryDeals.length === 0) {
-      recommendations.set(`client-without-deal-${contact.id}`, {
+      setGenerated(`client-without-deal-${contact.id}`, {
         id: `client-without-deal-${contact.id}`,
         title: `Move ${contact.name} to Deals`,
         reason: "They converted to client but do not have an active deal yet.",
@@ -206,7 +254,7 @@ export async function getTodayRecommendations(db: DbClient, workspaceId: string)
     if (!draft.contact) continue;
     if ((draft.channel === "sms" || draft.channel === "email") && !consentAllows(draft.contact.consents, draft.channel)) continue;
     const score = draft.contact.urgencyScore >= 75 ? 94 : 78;
-    recommendations.set(`draft-${draft.id}`, {
+    setGenerated(`draft-${draft.id}`, {
       id: `draft-${draft.id}`,
       title: `Approve ${draft.channel.toUpperCase()} to ${draft.contact.name}`,
       reason: "AI drafted a response and it is waiting for human approval.",
@@ -224,7 +272,7 @@ export async function getTodayRecommendations(db: DbClient, workspaceId: string)
 
   for (const task of overdueTasks) {
     const score = task.priority === "urgent" ? 91 : task.priority === "high" ? 82 : 64;
-    recommendations.set(`task-${task.id}`, {
+    setGenerated(`task-${task.id}`, {
       id: `task-${task.id}`,
       title: task.title,
       reason: "This task is overdue and still open.",
@@ -243,7 +291,7 @@ export async function getTodayRecommendations(db: DbClient, workspaceId: string)
   for (const deal of deals) {
     const contact = deal.primaryContact ?? deal.participants[0]?.contact;
     const score = deal.riskLevel === "stalled" ? 92 : deal.riskLevel === "high" ? 86 : 70 + scoreDue(deal.nextActionDueAt);
-    recommendations.set(`deal-${deal.id}`, {
+    setGenerated(`deal-${deal.id}`, {
       id: `deal-${deal.id}`,
       title: deal.riskLevel === "stalled" ? `Unstall ${deal.name}` : `Move ${deal.name} forward`,
       reason: deal.riskLevel === "stalled" ? "Deal is marked stalled and needs the next blocking item cleared." : "Deal has a deadline or next action coming due.",
@@ -261,7 +309,7 @@ export async function getTodayRecommendations(db: DbClient, workspaceId: string)
 
   for (const event of lifecycle) {
     const score = event.dueAt <= now ? 76 : 58;
-    recommendations.set(`lifecycle-${event.id}`, {
+    setGenerated(`lifecycle-${event.id}`, {
       id: `lifecycle-${event.id}`,
       title: `Check in with ${event.contact.name}`,
       reason: "Past client is due for a client-for-life touch.",

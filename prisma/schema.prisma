@@ -54,27 +54,28 @@ enum ConsentStatus {
 }
 
 model Workspace {
-  id                         String                    @id @default(cuid())
-  name                       String
-  aiAutoSendEnabled          Boolean                   @default(false)
-  unsubscribeFooter          String                    @default("Reply unsubscribe to opt out of email. Reply STOP to opt out of SMS.")
-  createdAt                  DateTime                  @default(now())
-  updatedAt                  DateTime                  @updatedAt
-  members                    WorkspaceMember[]
-  contacts                   Contact[]
-  leadSources                LeadSource[]
-  tasks                      Task[]
-  campaigns                  Campaign[]
-  workflows                  Workflow[]
-  deals                      Deal[]
-  clientLifecyclePlans       ClientLifecyclePlan[]
-  contentSources             ContentSource[]
-  newsletterDrafts           NewsletterDraft[]
-  webhookEndpoints           WebhookEndpoint[]
-  webhookDeliveries          WebhookDelivery[]
-  webhookEvents              WebhookEvent[]
-  agentCommands              AgentCommand[]
-  auditLogs                  AuditLog[]
+  id                   String                @id @default(cuid())
+  name                 String
+  aiAutoSendEnabled    Boolean               @default(false)
+  unsubscribeFooter    String                @default("Reply unsubscribe to opt out of email. Reply STOP to opt out of SMS.")
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  members              WorkspaceMember[]
+  contacts             Contact[]
+  leadSources          LeadSource[]
+  tasks                Task[]
+  campaigns            Campaign[]
+  workflows            Workflow[]
+  deals                Deal[]
+  clientLifecyclePlans ClientLifecyclePlan[]
+  contentSources       ContentSource[]
+  newsletterDrafts     NewsletterDraft[]
+  webhookEndpoints     WebhookEndpoint[]
+  webhookDeliveries    WebhookDelivery[]
+  webhookEvents        WebhookEvent[]
+  recommendedActions   RecommendedAction[]
+  agentCommands        AgentCommand[]
+  auditLogs            AuditLog[]
 
   @@map("workspaces")
 }
@@ -105,42 +106,43 @@ model WorkspaceMember {
 }
 
 model Contact {
-  id                    String                  @id @default(cuid())
-  workspaceId           String
-  ownerId               String?
-  name                  String
-  stage                 ContactStage            @default(new)
-  type                  ContactType             @default(unknown)
-  urgencyScore          Int                     @default(0)
-  aiSummary             String?
-  aiSuggestedAction     String?
+  id                     String                 @id @default(cuid())
+  workspaceId            String
+  ownerId                String?
+  name                   String
+  stage                  ContactStage           @default(new)
+  type                   ContactType            @default(unknown)
+  urgencyScore           Int                    @default(0)
+  aiSummary              String?
+  aiSuggestedAction      String?
   suggestedFirstResponse String?
-  source                String?
-  lastTouchAt           DateTime?
-  lastReplyAt           DateTime?
-  nextAction            String
-  nextActionType        String                  @default("follow_up")
-  nextActionDueAt       DateTime
-  nextActionReason      String?
-  nextActionConfidence  Int                     @default(75)
-  createdAt             DateTime                @default(now())
-  updatedAt             DateTime                @updatedAt
-  workspace             Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  owner                 User?                   @relation("ContactOwner", fields: [ownerId], references: [id])
-  emails                ContactEmail[]
-  phones                ContactPhone[]
-  tags                  ContactTag[]
-  notes                 ContactNote[]
-  consents              ContactConsent[]
-  leadEvents            LeadEvent[]
-  threads               MessageThread[]
-  messages              Message[]
-  tasks                 Task[]
-  campaignEnrollments   CampaignEnrollment[]
-  primaryDeals          Deal[]                  @relation("DealPrimaryContact")
-  dealParticipants      DealParticipant[]
-  lifecycleEvents       ClientLifecycleEvent[]
-  valuationRequests     HomeValuationRequest[]
+  source                 String?
+  lastTouchAt            DateTime?
+  lastReplyAt            DateTime?
+  nextAction             String
+  nextActionType         String                 @default("follow_up")
+  nextActionDueAt        DateTime
+  nextActionReason       String?
+  nextActionConfidence   Int                    @default(75)
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+  workspace              Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  owner                  User?                  @relation("ContactOwner", fields: [ownerId], references: [id])
+  emails                 ContactEmail[]
+  phones                 ContactPhone[]
+  tags                   ContactTag[]
+  notes                  ContactNote[]
+  consents               ContactConsent[]
+  leadEvents             LeadEvent[]
+  threads                MessageThread[]
+  messages               Message[]
+  tasks                  Task[]
+  campaignEnrollments    CampaignEnrollment[]
+  primaryDeals           Deal[]                 @relation("DealPrimaryContact")
+  dealParticipants       DealParticipant[]
+  lifecycleEvents        ClientLifecycleEvent[]
+  valuationRequests      HomeValuationRequest[]
+  recommendedActions     RecommendedAction[]
 
   @@index([workspaceId, stage])
   @@index([workspaceId, type])
@@ -218,15 +220,15 @@ model LeadSource {
 }
 
 model LeadEvent {
-  id           String     @id @default(cuid())
+  id           String      @id @default(cuid())
   workspaceId  String
   contactId    String
   leadSourceId String?
   source       String
   payload      Json
-  aiClass      Json       @default("{}")
-  createdAt    DateTime   @default(now())
-  contact      Contact    @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  aiClass      Json        @default("{}")
+  createdAt    DateTime    @default(now())
+  contact      Contact     @relation(fields: [contactId], references: [id], onDelete: Cascade)
   leadSource   LeadSource? @relation(fields: [leadSourceId], references: [id])
 
   @@index([workspaceId, createdAt])
@@ -234,59 +236,60 @@ model LeadEvent {
 }
 
 model MessageThread {
-  id          String    @id @default(cuid())
+  id          String         @id @default(cuid())
   workspaceId String
   contactId   String
   subject     String?
   channel     MessageChannel
-  createdAt   DateTime  @default(now())
-  contact     Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  createdAt   DateTime       @default(now())
+  contact     Contact        @relation(fields: [contactId], references: [id], onDelete: Cascade)
   messages    Message[]
 
   @@map("message_threads")
 }
 
 model Message {
-  id          String         @id @default(cuid())
-  workspaceId String
-  contactId   String?
-  threadId    String?
-  channel     MessageChannel
-  direction   String         @default("outbound")
-  status      String         @default("draft")
-  subject     String?
-  body        String
-  aiGenerated Boolean        @default(false)
-  approvedByUser Boolean     @default(false)
-  metadata    Json           @default("{}")
-  createdAt   DateTime       @default(now())
-  sentAt      DateTime?
-  contact     Contact?       @relation(fields: [contactId], references: [id], onDelete: SetNull)
-  thread      MessageThread? @relation(fields: [threadId], references: [id], onDelete: SetNull)
+  id             String         @id @default(cuid())
+  workspaceId    String
+  contactId      String?
+  threadId       String?
+  channel        MessageChannel
+  direction      String         @default("outbound")
+  status         String         @default("draft")
+  subject        String?
+  body           String
+  aiGenerated    Boolean        @default(false)
+  approvedByUser Boolean        @default(false)
+  metadata       Json           @default("{}")
+  createdAt      DateTime       @default(now())
+  sentAt         DateTime?
+  contact        Contact?       @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  thread         MessageThread? @relation(fields: [threadId], references: [id], onDelete: SetNull)
 
   @@index([workspaceId, contactId])
   @@map("messages")
 }
 
 model Task {
-  id          String    @id @default(cuid())
-  workspaceId String
-  contactId   String?
-  dealId      String?
-  assignedToId String?
-  type        String    @default("follow_up")
-  title       String
-  body        String?
-  dueAt       DateTime?
-  status      String    @default("open")
-  priority    String    @default("normal")
-  createdByAi Boolean   @default(false)
-  createdAt   DateTime  @default(now())
-  completedAt DateTime?
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  contact     Contact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
-  deal        Deal?     @relation(fields: [dealId], references: [id], onDelete: SetNull)
-  assignee    User?     @relation("TaskAssignee", fields: [assignedToId], references: [id])
+  id                 String              @id @default(cuid())
+  workspaceId        String
+  contactId          String?
+  dealId             String?
+  assignedToId       String?
+  type               String              @default("follow_up")
+  title              String
+  body               String?
+  dueAt              DateTime?
+  status             String              @default("open")
+  priority           String              @default("normal")
+  createdByAi        Boolean             @default(false)
+  createdAt          DateTime            @default(now())
+  completedAt        DateTime?
+  workspace          Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  contact            Contact?            @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  deal               Deal?               @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  assignee           User?               @relation("TaskAssignee", fields: [assignedToId], references: [id])
+  recommendedActions RecommendedAction[]
 
   @@index([workspaceId, status, dueAt])
   @@map("tasks")
@@ -309,31 +312,31 @@ model Campaign {
 }
 
 model CampaignStep {
-  id          String   @id @default(cuid())
-  campaignId  String
-  position    Int
-  delayDays   Int      @default(0)
-  channel     MessageChannel
-  subject     String?
-  body        String
-  template    String?
-  stopOnReply Boolean  @default(true)
-  requiresApproval Boolean @default(true)
-  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  id               String         @id @default(cuid())
+  campaignId       String
+  position         Int
+  delayDays        Int            @default(0)
+  channel          MessageChannel
+  subject          String?
+  body             String
+  template         String?
+  stopOnReply      Boolean        @default(true)
+  requiresApproval Boolean        @default(true)
+  campaign         Campaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 
   @@unique([campaignId, position])
   @@map("campaign_steps")
 }
 
 model CampaignEnrollment {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   campaignId  String
   contactId   String
-  status      String    @default("active")
-  currentStep Int       @default(0)
-  createdAt   DateTime  @default(now())
-  campaign    Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  contact     Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  status      String   @default("active")
+  currentStep Int      @default(0)
+  createdAt   DateTime @default(now())
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact     Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
 
   @@unique([campaignId, contactId])
   @@map("campaign_enrollments")
@@ -368,13 +371,13 @@ model WorkflowVersion {
 }
 
 model WorkflowStep {
-  id                String          @id @default(cuid())
+  id                String            @id @default(cuid())
   workflowVersionId String
   position          Int
-  kind              String          @default("action")
+  kind              String            @default("action")
   action            String
-  config            Json            @default("{}")
-  version           WorkflowVersion @relation(fields: [workflowVersionId], references: [id], onDelete: Cascade)
+  config            Json              @default("{}")
+  version           WorkflowVersion   @relation(fields: [workflowVersionId], references: [id], onDelete: Cascade)
   stepRuns          WorkflowStepRun[]
 
   @@unique([workflowVersionId, position])
@@ -382,17 +385,17 @@ model WorkflowStep {
 }
 
 model WorkflowRun {
-  id                String           @id @default(cuid())
+  id                String            @id @default(cuid())
   workspaceId       String
   workflowId        String
   workflowVersionId String
   trigger           String
-  status            String           @default("running")
-  payload           Json             @default("{}")
-  startedAt         DateTime         @default(now())
+  status            String            @default("running")
+  payload           Json              @default("{}")
+  startedAt         DateTime          @default(now())
   completedAt       DateTime?
-  workflow          Workflow         @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-  version           WorkflowVersion  @relation(fields: [workflowVersionId], references: [id], onDelete: Cascade)
+  workflow          Workflow          @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  version           WorkflowVersion   @relation(fields: [workflowVersionId], references: [id], onDelete: Cascade)
   stepRuns          WorkflowStepRun[]
 
   @@map("workflow_runs")
@@ -413,34 +416,69 @@ model WorkflowStepRun {
 }
 
 model Deal {
-  id               String             @id @default(cuid())
-  workspaceId      String
-  type             DealType
-  primaryContactId String?
-  name             String
-  stage            String             @default("new")
-  valueCents       Int                @default(0)
-  commissionEstimateCents Int          @default(0)
-  propertyAddress  String?
-  nextAction       String
-  nextActionDueAt  DateTime
-  deadline         DateTime?
-  riskLevel        String             @default("normal")
-  checklist        Json               @default("[]")
-  deadlines        Json               @default("[]")
-  notes            String?
-  closedAt         DateTime?
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
-  workspace        Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  primaryContact   Contact?           @relation("DealPrimaryContact", fields: [primaryContactId], references: [id], onDelete: SetNull)
-  participants     DealParticipant[]
-  stageHistory     DealStageHistory[]
-  tasks            DealTask[]
-  crmTasks         Task[]
+  id                      String              @id @default(cuid())
+  workspaceId             String
+  type                    DealType
+  primaryContactId        String?
+  name                    String
+  stage                   String              @default("new")
+  valueCents              Int                 @default(0)
+  commissionEstimateCents Int                 @default(0)
+  propertyAddress         String?
+  nextAction              String
+  nextActionDueAt         DateTime
+  deadline                DateTime?
+  riskLevel               String              @default("normal")
+  checklist               Json                @default("[]")
+  deadlines               Json                @default("[]")
+  notes                   String?
+  closedAt                DateTime?
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+  workspace               Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  primaryContact          Contact?            @relation("DealPrimaryContact", fields: [primaryContactId], references: [id], onDelete: SetNull)
+  participants            DealParticipant[]
+  stageHistory            DealStageHistory[]
+  tasks                   DealTask[]
+  crmTasks                Task[]
+  recommendedActions      RecommendedAction[]
 
   @@index([workspaceId, type, stage])
   @@map("deals")
+}
+
+model RecommendedAction {
+  id               String    @id @default(cuid())
+  workspaceId      String
+  externalKey      String
+  contactId        String?
+  dealId           String?
+  taskId           String?
+  actionType       String
+  title            String
+  reason           String
+  evidence         Json      @default("[]")
+  suggestedMessage String?
+  priority         String
+  score            Int
+  confidence       Int       @default(75)
+  dueAt            DateTime
+  status           String    @default("open")
+  snoozedUntil     DateTime?
+  dismissReason    String?
+  metadata         Json      @default("{}")
+  resolvedAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  contact          Contact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  deal             Deal?     @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  task             Task?     @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@unique([workspaceId, externalKey])
+  @@index([workspaceId, status, dueAt])
+  @@index([workspaceId, score])
+  @@map("recommended_actions")
 }
 
 model DealParticipant {
@@ -467,12 +505,12 @@ model DealStageHistory {
 }
 
 model DealTask {
-  id        String    @id @default(cuid())
-  dealId    String
-  title     String
-  dueAt     DateTime?
-  status    String    @default("open")
-  deal      Deal      @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  id     String    @id @default(cuid())
+  dealId String
+  title  String
+  dueAt  DateTime?
+  status String    @default("open")
+  deal   Deal      @relation(fields: [dealId], references: [id], onDelete: Cascade)
 
   @@map("deal_tasks")
 }
@@ -490,18 +528,18 @@ model ClientLifecyclePlan {
 }
 
 model ClientLifecycleEvent {
-  id          String               @id @default(cuid())
-  workspaceId String
-  planId      String?
-  contactId   String
-  eventType   String
-  dueAt       DateTime
-  status      String               @default("due")
-  notes       String?
+  id           String               @id @default(cuid())
+  workspaceId  String
+  planId       String?
+  contactId    String
+  eventType    String
+  dueAt        DateTime
+  status       String               @default("due")
+  notes        String?
   messageDraft String?
-  createdAt   DateTime             @default(now())
-  plan        ClientLifecyclePlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
-  contact     Contact              @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  createdAt    DateTime             @default(now())
+  plan         ClientLifecyclePlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
+  contact      Contact              @relation(fields: [contactId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId, status, dueAt])
   @@map("client_lifecycle_events")
@@ -520,31 +558,31 @@ model HomeValuationRequest {
 }
 
 model ContentSource {
-  id          String        @id @default(cuid())
-  workspaceId String
-  name        String
-  url         String
-  kind        String        @default("rss")
+  id            String        @id @default(cuid())
+  workspaceId   String
+  name          String
+  url           String
+  kind          String        @default("rss")
   lastFetchedAt DateTime?
-  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  posts       ContentPost[]
+  workspace     Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  posts         ContentPost[]
 
   @@unique([workspaceId, url])
   @@map("content_sources")
 }
 
 model ContentPost {
-  id           String           @id @default(cuid())
-  workspaceId  String
-  sourceId     String?
-  title        String
-  url          String
-  excerpt      String?
-  content      String?
-  publishedAt  DateTime?
-  createdAt    DateTime         @default(now())
-  source       ContentSource?    @relation(fields: [sourceId], references: [id], onDelete: SetNull)
-  drafts       NewsletterDraft[]
+  id          String            @id @default(cuid())
+  workspaceId String
+  sourceId    String?
+  title       String
+  url         String
+  excerpt     String?
+  content     String?
+  publishedAt DateTime?
+  createdAt   DateTime          @default(now())
+  source      ContentSource?    @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  drafts      NewsletterDraft[]
 
   @@unique([workspaceId, url])
   @@map("content_posts")
@@ -560,19 +598,19 @@ model NewsletterDraft {
   status      String           @default("draft")
   createdAt   DateTime         @default(now())
   workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  post        ContentPost?      @relation(fields: [postId], references: [id], onDelete: SetNull)
+  post        ContentPost?     @relation(fields: [postId], references: [id], onDelete: SetNull)
   sends       NewsletterSend[]
 
   @@map("newsletter_drafts")
 }
 
 model NewsletterSend {
-  id        String          @id @default(cuid())
-  draftId   String
-  status    String          @default("logged")
-  provider  String          @default("mock")
-  sentAt    DateTime?
-  draft     NewsletterDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  id       String          @id @default(cuid())
+  draftId  String
+  status   String          @default("logged")
+  provider String          @default("mock")
+  sentAt   DateTime?
+  draft    NewsletterDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
 
   @@map("newsletter_sends")
 }

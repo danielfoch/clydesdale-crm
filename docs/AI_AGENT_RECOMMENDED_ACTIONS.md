@@ -138,4 +138,61 @@ It powers:
 /today
 ```
 
-External agents should use the same logic and safe command layer as it evolves.
+## API
+
+List stored recommendations:
+
+```http
+GET /api/recommended-actions?status=open
+```
+
+Generate and upsert system recommendations from CRM data:
+
+```http
+POST /api/recommended-actions/generate
+```
+
+Upsert an external agent recommendation:
+
+```http
+POST /api/recommended-actions/upsert
+Content-Type: application/json
+
+{
+  "externalKey": "agent:hot-lead:contact_123",
+  "contactId": "contact_123",
+  "actionType": "call",
+  "title": "Call Ben Walsh",
+  "reason": "Hot buyer lead. No completed call is logged yet.",
+  "evidence": ["Lead stage", "High urgency", "No call logged"],
+  "suggestedMessage": "Hi Ben, are you free for a quick call today?",
+  "priority": "High",
+  "score": 94,
+  "confidence": 88,
+  "dueAt": "2026-05-08T14:00:00.000Z"
+}
+```
+
+Update, snooze, dismiss, stale, or complete a recommendation:
+
+```http
+PATCH /api/recommended-actions/{id}
+Content-Type: application/json
+
+{
+  "status": "dismissed",
+  "dismissReason": "Handled manually"
+}
+```
+
+Valid statuses:
+
+```txt
+open
+snoozed
+done
+dismissed
+stale
+```
+
+External agents should use these endpoints and the safe command layer as it evolves.
