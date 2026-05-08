@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bot, BriefcaseBusiness, CalendarCheck, Settings, UsersRound, Megaphone, Phone, Trophy, UserRound } from "lucide-react";
+import { BriefcaseBusiness, CalendarCheck, ChessKnight, Settings, UsersRound, Megaphone, Phone, Trophy, UserRound } from "lucide-react";
 
 const navItems = [
   { href: "/today", label: "Today", icon: CalendarCheck },
@@ -18,7 +18,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
       <aside className="fixed inset-y-0 left-0 hidden w-60 border-r border-[#d9ded5] bg-[#fbfcf8] px-4 py-5 md:block">
         <Link href="/today" className="mb-7 flex items-center gap-3 font-semibold">
           <span className="grid size-9 place-items-center rounded bg-[#17231d] text-white">
-            <Bot size={18} />
+            <ChessKnight size={19} />
           </span>
           Warhorse CRM
         </Link>
