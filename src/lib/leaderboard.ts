@@ -26,7 +26,7 @@ const excludedActions = new Set([
   "ai_provider.key_removed",
 ]);
 
-const checkboxActions = new Set(["task.completed", "loop_checklist.completed"]);
+const checkboxActions = new Set(["task.completed", "loop_checklist.completed", "loop_checklist.uncompleted"]);
 const callActions = new Set([
   "call.started_twilio",
   "call.logged",

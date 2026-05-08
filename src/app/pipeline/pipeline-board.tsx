@@ -23,6 +23,7 @@ import {
   markTaskDoneAction,
   sendContactMessageAction,
   snoozeContactAction,
+  uncompleteLoopChecklistItemAction,
   updateContactPipelineStageAction,
 } from "@/app/actions";
 import { inputClass, Panel } from "@/components/ui";
@@ -298,7 +299,7 @@ function ContactCard({
               const type = loopTaskType("pipeline", person.stage, item.key);
               const done = person.tasks.some((task) => task.type === type && task.status === "done");
               return (
-                <form key={item.key} action={completeLoopChecklistItemAction} className="flex items-center justify-between gap-2 rounded border border-[#e4e8df] bg-white/70 p-2">
+                <form key={item.key} action={done ? uncompleteLoopChecklistItemAction : completeLoopChecklistItemAction} className="flex items-center justify-between gap-2 rounded border border-[#e4e8df] bg-white/70 p-2">
                   <input type="hidden" name="scope" value="pipeline" />
                   <input type="hidden" name="contactId" value={person.id} />
                   <input type="hidden" name="stage" value={person.stage} />
@@ -306,9 +307,9 @@ function ContactCard({
                   <input type="hidden" name="label" value={item.label} />
                   <span className={`line-clamp-1 text-xs ${done ? "text-[#68736a] line-through" : "text-[#26352c]"}`}>{item.label}</span>
                   <button
-                    disabled={done}
                     className={`grid size-7 place-items-center rounded ${done ? "bg-[#dcfce7] text-[#14532d]" : "border border-[#cfd6ca] bg-white hover:bg-[#f5f7f2]"}`}
-                    aria-label={done ? `${item.label} completed` : `Complete ${item.label}`}
+                    aria-label={done ? `Uncheck ${item.label}` : `Complete ${item.label}`}
+                    title={done ? "Uncheck" : "Complete"}
                   >
                     <CheckCircle2 size={14} />
                   </button>

@@ -13,6 +13,7 @@ import {
   markTaskDoneAction,
   sendContactMessageAction,
   snoozeDealAction,
+  uncompleteLoopChecklistItemAction,
   updateDealPipelineStageAction,
 } from "@/app/actions";
 import { inputClass, Panel } from "@/components/ui";
@@ -295,7 +296,7 @@ function DealCard({
               const type = loopTaskType("deal", deal.stage, item.key);
               const done = deal.tasks.some((task) => task.type === type && task.status === "done");
               return (
-                <form key={item.key} action={completeLoopChecklistItemAction} className="flex items-center justify-between gap-2 rounded border border-[#e4e8df] bg-white/70 p-2">
+                <form key={item.key} action={done ? uncompleteLoopChecklistItemAction : completeLoopChecklistItemAction} className="flex items-center justify-between gap-2 rounded border border-[#e4e8df] bg-white/70 p-2">
                   <input type="hidden" name="scope" value="deal" />
                   <input type="hidden" name="dealId" value={deal.id} />
                   {contact ? <input type="hidden" name="contactId" value={contact.id} /> : null}
@@ -304,9 +305,9 @@ function DealCard({
                   <input type="hidden" name="label" value={item.label} />
                   <span className={`line-clamp-1 text-xs ${done ? "text-[#68736a] line-through" : "text-[#26352c]"}`}>{item.label}</span>
                   <button
-                    disabled={done}
                     className={`grid size-7 place-items-center rounded ${done ? "bg-[#dcfce7] text-[#14532d]" : "border border-[#cfd6ca] bg-white hover:bg-[#f5f7f2]"}`}
-                    aria-label={done ? `${item.label} completed` : `Complete ${item.label}`}
+                    aria-label={done ? `Uncheck ${item.label}` : `Complete ${item.label}`}
+                    title={done ? "Uncheck" : "Complete"}
                   >
                     <CheckCircle2 size={14} />
                   </button>

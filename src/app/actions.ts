@@ -488,6 +488,84 @@ export async function completeLoopChecklistItemAction(formData: FormData) {
   if (scoreContactId) revalidatePath(`/people/${scoreContactId}`);
 }
 
+export async function uncompleteLoopChecklistItemAction(formData: FormData) {
+  const db = getPrisma();
+  const workspaceId = await getDefaultWorkspaceId();
+  const scope = requiredString(formData, "scope") as "pipeline" | "deal";
+  const itemKey = requiredString(formData, "itemKey");
+  const stage = requiredString(formData, "stage");
+  const label = requiredString(formData, "label");
+  const contactId = optionalString(formData, "contactId");
+  const dealId = optionalString(formData, "dealId");
+  const type = loopTaskType(scope, stage, itemKey);
+
+  if (!contactId && !dealId) throw new Error("contactId or dealId is required");
+
+  const existing = await db.task.findFirst({
+    where: {
+      workspaceId,
+      type,
+      contactId: contactId ?? undefined,
+      dealId: dealId ?? undefined,
+      status: "done",
+    },
+  });
+
+  if (!existing) {
+    revalidatePath("/today");
+    revalidatePath("/pipeline");
+    revalidatePath("/deals");
+    if (contactId) revalidatePath(`/people/${contactId}`);
+    return;
+  }
+
+  const task = await db.task.update({
+    where: { id: existing.id },
+    data: { status: "open", completedAt: null },
+  });
+
+  const deal = dealId ? await db.deal.findUnique({ where: { id: dealId }, include: { participants: true } }) : null;
+  const scoreContactId = contactId ?? deal?.primaryContactId ?? deal?.participants[0]?.contactId;
+  if (scoreContactId) {
+    const completedCount = await db.task.count({
+      where: {
+        workspaceId,
+        contactId: scoreContactId,
+        type: { startsWith: "loop:" },
+        status: "done",
+      },
+    });
+    await db.contact.update({
+      where: { id: scoreContactId },
+      data: {
+        urgencyScore: { decrement: 5 },
+        nextActionConfidence: Math.min(95, 70 + completedCount * 4),
+        nextActionReason: `Loop box unchecked: ${label}`,
+      },
+    });
+    const updated = await db.contact.findUnique({ where: { id: scoreContactId }, select: { urgencyScore: true } });
+    if (updated && updated.urgencyScore < 0) {
+      await db.contact.update({ where: { id: scoreContactId }, data: { urgencyScore: 0 } });
+    }
+  }
+
+  if (dealId) {
+    await db.deal.update({
+      where: { id: dealId },
+      data: {
+        nextAction: `Revisit checklist step: ${label}`,
+        nextActionDueAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      },
+    });
+  }
+
+  await writeAudit({ workspaceId, actorType: "user", action: "loop_checklist.uncompleted", targetType: "task", targetId: task.id, metadata: { scope, stage, itemKey, label, contactId, dealId } }, db);
+  revalidatePath("/today");
+  revalidatePath("/pipeline");
+  revalidatePath("/deals");
+  if (scoreContactId) revalidatePath(`/people/${scoreContactId}`);
+}
+
 export async function logCallAction(formData: FormData) {
   const db = getPrisma();
   const workspaceId = await getDefaultWorkspaceId();
