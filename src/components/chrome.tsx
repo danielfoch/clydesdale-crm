@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bot, BriefcaseBusiness, CalendarCheck, Settings, UsersRound, Megaphone } from "lucide-react";
+import { Bot, BriefcaseBusiness, CalendarCheck, Settings, UsersRound, Megaphone, Phone } from "lucide-react";
 
 const navItems = [
   { href: "/today", label: "Today", icon: CalendarCheck },
@@ -10,6 +10,7 @@ const navItems = [
 ];
 
 export function AppChrome({ children }: { children: React.ReactNode }) {
+  const phoneNumber = process.env.TWILIO_FROM_NUMBER ?? process.env.TWILIO_AGENT_NUMBER;
   return (
     <div className="min-h-screen bg-[#f6f7f4] text-[#18211d]">
       <aside className="fixed inset-y-0 left-0 hidden w-60 border-r border-[#d9ded5] bg-[#fbfcf8] px-4 py-5 md:block">
@@ -43,6 +44,16 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
           </Link>
         ))}
       </nav>
+      <div className="group fixed bottom-20 right-4 z-40 md:bottom-5">
+        <button className="flex items-center gap-2 rounded-full bg-[#17231d] px-4 py-3 text-sm font-medium text-white shadow-lg">
+          <Phone size={16} /> Phone
+        </button>
+        <div className="pointer-events-none absolute bottom-full right-0 mb-2 w-72 translate-y-1 rounded-md border border-[#d9ded5] bg-white p-4 text-sm opacity-0 shadow-xl transition group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100">
+          <div className="font-semibold">Live phone</div>
+          <p className="mt-1 text-xs text-[#68736a]">Use Contact menus to start Twilio calls, texts, voicemail drops, or AI ISA calls.</p>
+          {phoneNumber ? <div className="mt-3 rounded bg-[#f6f7f4] px-3 py-2 text-xs text-[#46534b]">{phoneNumber}</div> : null}
+        </div>
+      </div>
     </div>
   );
 }

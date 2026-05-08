@@ -196,3 +196,34 @@ stale
 ```
 
 External agents should use these endpoints and the safe command layer as it evolves.
+
+## Contact Action API
+
+Use this for direct contact actions exposed in the Today contact menu.
+
+```http
+POST /api/contact-actions
+Content-Type: application/json
+
+{
+  "contactId": "contact_123",
+  "action": "call",
+  "body": "Call started by external agent."
+}
+```
+
+Allowed actions:
+
+```txt
+call
+send_text
+voicemail_drop
+ai_isa_call
+```
+
+Provider notes:
+
+- `call` uses Twilio Voice when configured, otherwise logs the call attempt.
+- `send_text` uses Twilio SMS when configured, otherwise logs/sends through the existing message abstraction.
+- `voicemail_drop` is queued as a Slybroadcast placeholder.
+- `ai_isa_call` is queued as a Vapi placeholder.

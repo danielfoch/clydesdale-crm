@@ -8,6 +8,7 @@ import { getPrisma } from "@/lib/prisma";
 import { getDefaultWorkspaceId } from "@/lib/workspace";
 import { writeAudit } from "@/lib/audit";
 import { generateClientForLifeCheckin } from "@/lib/ai";
+import { executeContactAction } from "@/lib/contact-actions";
 import { approveAndSendMessage, createMessageDraft, startTwilioVoiceCall } from "@/lib/messages";
 
 function requiredString(formData: FormData, key: string) {
@@ -336,6 +337,42 @@ export async function logCallAction(formData: FormData) {
   revalidatePath("/pipeline");
   if (contact?.id) revalidatePath(`/people/${contact.id}`);
   if (dealId) revalidatePath("/deals");
+}
+
+export async function queueVoicemailDropAction(formData: FormData) {
+  const db = getPrisma();
+  const workspaceId = await getDefaultWorkspaceId();
+  const contactId = requiredString(formData, "contactId");
+  await executeContactAction(
+    {
+      workspaceId,
+      contactId,
+      action: "voicemail_drop",
+      body: optionalString(formData, "body") ?? "Voicemail drop queued from CRM.",
+    },
+    db,
+  );
+  revalidatePath("/today");
+  revalidatePath("/pipeline");
+  revalidatePath(`/people/${contactId}`);
+}
+
+export async function queueAiIsaCallAction(formData: FormData) {
+  const db = getPrisma();
+  const workspaceId = await getDefaultWorkspaceId();
+  const contactId = requiredString(formData, "contactId");
+  await executeContactAction(
+    {
+      workspaceId,
+      contactId,
+      action: "ai_isa_call",
+      body: optionalString(formData, "body") ?? "AI ISA call queued from CRM.",
+    },
+    db,
+  );
+  revalidatePath("/today");
+  revalidatePath("/pipeline");
+  revalidatePath(`/people/${contactId}`);
 }
 
 export async function snoozeContactAction(formData: FormData) {

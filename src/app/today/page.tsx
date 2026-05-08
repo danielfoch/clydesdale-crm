@@ -8,6 +8,8 @@ import {
   createDealAction,
   logCallAction,
   markTaskDoneAction,
+  queueAiIsaCallAction,
+  queueVoicemailDropAction,
   sendContactMessageAction,
   snoozeContactAction,
   snoozeDealAction,
@@ -32,6 +34,63 @@ function PriorityBadge({ priority }: { priority: TodayRecommendation["priority"]
         ? "bg-[#e0f2fe] text-[#075985]"
         : "bg-[#ecfdf5] text-[#166534]";
   return <span className={`rounded px-2 py-1 text-xs font-semibold ${className}`}>{priority}</span>;
+}
+
+function ContactMenu({ item }: { item: TodayRecommendation & { contact: NonNullable<TodayRecommendation["contact"]> } }) {
+  const defaultText = item.suggestedMessage ?? `Hi ${item.contact.name.split(" ")[0] || "there"}, quick check-in. Are you free for a quick call today?`;
+
+  return (
+    <details className="relative [&>summary::-webkit-details-marker]:hidden">
+      <summary className="cursor-pointer rounded bg-[#17231d] px-3 py-2 text-sm font-medium text-white hover:bg-[#26382f]">
+        Contact
+      </summary>
+      <div className="absolute right-0 z-40 mt-2 w-[min(92vw,340px)] space-y-3 rounded-md border border-[#d9ded5] bg-white p-4 shadow-xl">
+        <div>
+          <div className="text-sm font-semibold">{item.contact.name}</div>
+          <div className="mt-1 text-xs text-[#68736a]">{item.contact.phone ?? item.contact.email ?? "No contact info"}</div>
+        </div>
+        <div className="grid gap-2">
+          <form action={logCallAction}>
+            <input type="hidden" name="contactId" value={item.contact.id} />
+            <input type="hidden" name="body" value="Call started from Today contact menu." />
+            <button className="flex w-full items-center justify-between rounded border border-[#cfd6ca] px-3 py-2 text-sm hover:bg-[#f5f7f2]">
+              <span className="inline-flex items-center gap-2"><Phone size={14} /> Call</span>
+              <span className="text-xs text-[#68736a]">{item.contact.phone ?? "No phone"}</span>
+            </button>
+          </form>
+          <form action={sendContactMessageAction}>
+            <input type="hidden" name="contactId" value={item.contact.id} />
+            <input type="hidden" name="channel" value="sms" />
+            <input type="hidden" name="body" value={defaultText} />
+            <button className="flex w-full items-center gap-2 rounded border border-[#cfd6ca] px-3 py-2 text-sm hover:bg-[#f5f7f2]">
+              <MessageSquareText size={14} /> Send text
+            </button>
+          </form>
+          <form action={queueVoicemailDropAction}>
+            <input type="hidden" name="contactId" value={item.contact.id} />
+            <input type="hidden" name="body" value="Voicemail drop queued from Today contact menu." />
+            <button className="flex w-full items-center gap-2 rounded border border-[#cfd6ca] px-3 py-2 text-sm hover:bg-[#f5f7f2]">
+              <Phone size={14} /> Send voicemail drop
+            </button>
+          </form>
+          <form action={queueAiIsaCallAction}>
+            <input type="hidden" name="contactId" value={item.contact.id} />
+            <input type="hidden" name="body" value="AI ISA call queued from Today contact menu." />
+            <button className="flex w-full items-center gap-2 rounded border border-[#cfd6ca] px-3 py-2 text-sm hover:bg-[#f5f7f2]">
+              <UserRound size={14} /> Send AI ISA call
+            </button>
+          </form>
+          <form action={snoozeContactAction}>
+            <input type="hidden" name="contactId" value={item.contact.id} />
+            <input type="hidden" name="hours" value="24" />
+            <button className="flex w-full items-center gap-2 rounded border border-[#cfd6ca] px-3 py-2 text-sm hover:bg-[#f5f7f2]">
+              <Timer size={14} /> Snooze
+            </button>
+          </form>
+        </div>
+      </div>
+    </details>
+  );
 }
 
 function PrimaryAction({ item }: { item: TodayRecommendation }) {
@@ -62,42 +121,9 @@ function PrimaryAction({ item }: { item: TodayRecommendation }) {
     );
   }
 
-  if (item.deal) {
-    return (
-      <form action={logCallAction}>
-        <input type="hidden" name="dealId" value={item.deal.id} />
-        <input type="hidden" name="body" value="Deal call started from Today." />
-        <Button>Call</Button>
-      </form>
-    );
-  }
-
   if (!item.contact) return null;
 
-  if (item.actionType === "text" && item.suggestedMessage) {
-    return (
-      <form action={sendContactMessageAction}>
-        <input type="hidden" name="contactId" value={item.contact.id} />
-        <input type="hidden" name="channel" value="sms" />
-        <input type="hidden" name="body" value={item.suggestedMessage} />
-        <Button>Text</Button>
-      </form>
-    );
-  }
-
-  if (item.actionType === "email" && item.suggestedMessage) {
-    return (
-      <form action={sendContactMessageAction}>
-        <input type="hidden" name="contactId" value={item.contact.id} />
-        <input type="hidden" name="channel" value="email" />
-        <input type="hidden" name="subject" value="Quick follow-up" />
-        <input type="hidden" name="body" value={item.suggestedMessage} />
-        <Button>Email</Button>
-      </form>
-    );
-  }
-
-  if (item.actionType === "deal") {
+  if (item.actionType === "deal" && !item.deal) {
     const dealType = ["buyer", "tenant", "seller", "landlord"].includes(item.contact.type) ? item.contact.type : "buyer";
     return (
       <form action={createDealAction}>
@@ -111,13 +137,7 @@ function PrimaryAction({ item }: { item: TodayRecommendation }) {
     );
   }
 
-  return (
-    <form action={logCallAction}>
-      <input type="hidden" name="contactId" value={item.contact.id} />
-      <input type="hidden" name="body" value="Call started from Today." />
-      <Button>Call</Button>
-    </form>
-  );
+  return <ContactMenu item={item as TodayRecommendation & { contact: NonNullable<TodayRecommendation["contact"]> }} />;
 }
 
 function SecondaryActions({ item }: { item: TodayRecommendation }) {
