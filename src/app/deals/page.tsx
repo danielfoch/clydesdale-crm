@@ -1,6 +1,8 @@
 import { PageHeader } from "@/components/ui";
+import { getMotivationQuotes } from "@/lib/motivation-quotes";
 import { getPrisma } from "@/lib/prisma";
 import { getDefaultWorkspaceId } from "@/lib/workspace";
+import { MotivationRotator } from "@/app/today/motivation-rotator";
 import { DealsBoard, type BoardDeal } from "./deals-board";
 
 export const dynamic = "force-dynamic";
@@ -65,11 +67,25 @@ async function getDeals(): Promise<BoardDeal[]> {
 }
 
 export default async function DealsPage() {
-  const deals = await getDeals();
+  const db = getPrisma();
+  const workspaceId = await getDefaultWorkspaceId();
+  const [deals, motivationQuotes] = await Promise.all([
+    getDeals(),
+    getMotivationQuotes(workspaceId, db),
+  ]);
 
   return (
     <>
-      <PageHeader title="Deals" subtitle="Who is already a client and what stage are they in?" />
+      <div className="mb-5 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(420px,560px)] lg:items-start">
+        <PageHeader title="Deals" subtitle="Who is already a client and what stage are they in?" />
+        <MotivationRotator quotes={motivationQuotes.map((quote) => ({
+          id: quote.id,
+          source: quote.source,
+          text: quote.text,
+          upvotes: quote.upvotes,
+          downvotes: quote.downvotes,
+        }))} />
+      </div>
       <DealsBoard deals={deals} />
     </>
   );

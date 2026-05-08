@@ -1,8 +1,10 @@
 import { manualLeadAction } from "@/app/actions";
 import { Button, inputClass, PageHeader } from "@/components/ui";
 import { leadPipelineStages } from "@/lib/display";
+import { getMotivationQuotes } from "@/lib/motivation-quotes";
 import { getPrisma } from "@/lib/prisma";
 import { getDefaultWorkspaceId } from "@/lib/workspace";
+import { MotivationRotator } from "@/app/today/motivation-rotator";
 import { PipelineBoard, type PipelinePerson } from "./pipeline-board";
 
 export const dynamic = "force-dynamic";
@@ -73,13 +75,27 @@ async function getPipelineContacts(): Promise<PipelinePerson[]> {
 }
 
 export default async function PipelinePage() {
-  const people = await getPipelineContacts();
+  const db = getPrisma();
+  const workspaceId = await getDefaultWorkspaceId();
+  const [people, motivationQuotes] = await Promise.all([
+    getPipelineContacts(),
+    getMotivationQuotes(workspaceId, db),
+  ]);
 
   return (
     <>
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <PageHeader title="Pipeline" subtitle="Who am I turning into a client?" />
-        <AddLeadPopover />
+      <div className="mb-5 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(420px,560px)] lg:items-start">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between lg:block">
+          <PageHeader title="Pipeline" subtitle="Who am I turning into a client?" />
+          <AddLeadPopover />
+        </div>
+        <MotivationRotator quotes={motivationQuotes.map((quote) => ({
+          id: quote.id,
+          source: quote.source,
+          text: quote.text,
+          upvotes: quote.upvotes,
+          downvotes: quote.downvotes,
+        }))} />
       </div>
       <PipelineBoard people={people} />
     </>

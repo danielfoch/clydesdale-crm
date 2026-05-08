@@ -16,7 +16,7 @@ import {
 } from "@/app/actions";
 import { Button, Panel } from "@/components/ui";
 import { contactTypeLabel, formatDue, stageLabel } from "@/lib/display";
-import { ensureDefaultMotivationQuotes } from "@/lib/motivation-quotes";
+import { getMotivationQuotes } from "@/lib/motivation-quotes";
 import { getPrisma } from "@/lib/prisma";
 import { getTodayRecommendations, type TodayRecommendation } from "@/lib/recommended-actions";
 import { getDefaultWorkspaceId } from "@/lib/workspace";
@@ -271,14 +271,9 @@ function RecommendationRow({ item, index }: { item: TodayRecommendation; index: 
 export default async function TodayPage() {
   const db = getPrisma();
   const workspaceId = await getDefaultWorkspaceId();
-  await ensureDefaultMotivationQuotes(workspaceId, db);
   const [recommendations, motivationQuotes] = await Promise.all([
     getTodayRecommendations(db, workspaceId),
-    db.motivationQuote.findMany({
-      where: { workspaceId, isActive: true },
-      orderBy: [{ upvotes: "desc" }, { createdAt: "asc" }],
-      take: 80,
-    }),
+    getMotivationQuotes(workspaceId, db),
   ]);
 
   return (

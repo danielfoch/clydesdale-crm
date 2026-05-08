@@ -72,3 +72,13 @@ export async function ensureDefaultMotivationQuotes(workspaceId: string, db: DbC
     skipDuplicates: true,
   });
 }
+
+export async function getMotivationQuotes(workspaceId: string, db: DbClient) {
+  await ensureDefaultMotivationQuotes(workspaceId, db);
+
+  return db.motivationQuote.findMany({
+    where: { workspaceId, isActive: true },
+    orderBy: [{ upvotes: "desc" }, { createdAt: "asc" }],
+    take: 80,
+  });
+}
