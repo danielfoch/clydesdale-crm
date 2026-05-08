@@ -38,8 +38,8 @@ export const dealPipelineStages = [
   },
   {
     key: "sending_listings",
-    label: "Sending Listings",
-    description: "Sending homes, CMA, or market options.",
+    label: "Sharing Knowledge",
+    description: "Sharing listings, CMA, market updates, prep advice, or useful property knowledge.",
     dealStages: ["sending_listings", "searching", "preparing"],
   },
   {
@@ -78,7 +78,7 @@ const stageLabels: Record<string, string> = {
   unqualified: "Unqualified",
   archived: "Archived",
   met_with_client: "Met With Client",
-  sending_listings: "Sending Listings",
+  sending_listings: "Sharing Knowledge",
   listed: "Active Client",
   showings: "Active Client",
   out_looking: "Active Client",

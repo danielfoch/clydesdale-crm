@@ -322,7 +322,7 @@ export function PipelineBoard({ people }: { people: PipelinePerson[] }) {
               }}
               className={isOver ? "rounded-md ring-2 ring-[#17231d]/25" : "rounded-md"}
             >
-              <Panel title={`${stage.label} · ${cards.length}`}>
+              <Panel title={<span title={stage.description} className="cursor-help">{stage.label} · {cards.length}</span>}>
                 <p className="mb-2 min-h-7 text-[10px] leading-4 text-[#68736a]">{stage.description}</p>
                 <div className={`space-y-2 rounded-md transition ${isOver ? "bg-[#edf1e9] p-1.5" : ""}`}>
                   {cards.length ? cards.map((person) => (

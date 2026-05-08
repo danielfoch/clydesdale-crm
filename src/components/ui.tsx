@@ -7,7 +7,7 @@ export function PageHeader({ title, subtitle }: { title: string; subtitle?: stri
   );
 }
 
-export function Panel({ title, children }: { title?: string; children: React.ReactNode }) {
+export function Panel({ title, children }: { title?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="rounded-md border border-[#d9ded5] bg-white">
       {title ? <h2 className="border-b border-[#e4e8df] px-4 py-3 text-sm font-semibold">{title}</h2> : null}
