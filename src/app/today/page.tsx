@@ -19,6 +19,7 @@ import { contactTypeLabel, formatDue, stageLabel } from "@/lib/display";
 import { getMotivationQuotes } from "@/lib/motivation-quotes";
 import { getPrisma } from "@/lib/prisma";
 import { getTodayRecommendations, type TodayRecommendation } from "@/lib/recommended-actions";
+import { formatRevenue } from "@/lib/revenue-estimates";
 import { getDefaultWorkspaceId } from "@/lib/workspace";
 import { MotivationRotator } from "./motivation-rotator";
 
@@ -36,6 +37,18 @@ function PriorityBadge({ priority }: { priority: TodayRecommendation["priority"]
         ? "bg-[#e0f2fe] text-[#075985]"
         : "bg-[#ecfdf5] text-[#166534]";
   return <span className={`rounded px-2 py-1 text-xs font-semibold ${className}`}>{priority}</span>;
+}
+
+function EstimatedValueBadge({ item }: { item: TodayRecommendation }) {
+  if (!item.estimatedValueCents) return null;
+  return (
+    <span
+      title={item.estimatedValueReason ?? "AI estimated revenue impact"}
+      className="rounded bg-[#edf4ec] px-2 py-1 text-xs font-semibold text-[#245133]"
+    >
+      AI {formatRevenue(item.estimatedValueCents)}
+    </span>
+  );
 }
 
 function ContactMenu({ item }: { item: TodayRecommendation & { contact: NonNullable<TodayRecommendation["contact"]> } }) {
@@ -214,6 +227,7 @@ function RecommendationRow({ item, index }: { item: TodayRecommendation; index: 
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <PriorityBadge priority={item.priority} />
+            <EstimatedValueBadge item={item} />
             {item.contact ? <UserRound size={15} className="text-[#68736a]" /> : <BriefcaseBusiness size={15} className="text-[#68736a]" />}
             <Link href={item.contact ? `/people/${item.contact.id}` : item.deal ? "/deals" : "/today"} className="truncate font-semibold hover:underline">
               {item.title}
@@ -248,7 +262,9 @@ function RecommendationRow({ item, index }: { item: TodayRecommendation; index: 
                     {item.contact ? <div>{item.contact.name} · {item.contact.phone ?? item.contact.email ?? "No contact info"}</div> : null}
                     {item.deal ? <div>{item.deal.name} · {stageLabel(item.deal.stage)}</div> : null}
                     <div>Due: {formatDue(item.dueAt)}</div>
+                    {item.estimatedValueCents ? <div>AI value: {formatRevenue(item.estimatedValueCents)}</div> : null}
                   </div>
+                  {item.estimatedValueReason ? <p className="mt-2 text-xs text-[#68736a]">{item.estimatedValueReason}</p> : null}
                 </div>
               </div>
               {item.suggestedMessage ? (

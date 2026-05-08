@@ -5,6 +5,8 @@ import { type DbClient } from "./prisma";
 type Priority = "High" | "Medium" | "Low";
 type RecommendedActionType = "call" | "text" | "email" | "approve" | "task" | "deal" | "check_in" | "move_stage";
 
+const COMMISSION_RATE = 0.025;
+
 export type TodayRecommendation = {
   id: string;
   title: string;
@@ -14,6 +16,8 @@ export type TodayRecommendation = {
   priority: Priority;
   score: number;
   confidence: number;
+  estimatedValueCents?: number;
+  estimatedValueReason?: string;
   dueAt: Date;
   actionType: RecommendedActionType;
   contact?: {
@@ -23,12 +27,14 @@ export type TodayRecommendation = {
     stage: string;
     email?: string;
     phone?: string;
+    estimatedDealValueCents?: number;
   };
   deal?: {
     id: string;
     name: string;
     stage: string;
     type: string;
+    valueCents?: number;
   };
   taskId?: string;
   messageId?: string;
@@ -54,6 +60,7 @@ function safeContact(contact: {
   name: string;
   type: string;
   stage: string;
+  estimatedDealValueCents?: number;
   emails?: { email: string }[];
   phones?: { phone: string }[];
 }) {
@@ -64,6 +71,103 @@ function safeContact(contact: {
     stage: contact.stage,
     email: contact.emails?.[0]?.email,
     phone: contact.phones?.[0]?.phone,
+    estimatedDealValueCents: contact.estimatedDealValueCents,
+  };
+}
+
+function defaultDealValueCents(type: string) {
+  switch (type) {
+    case "seller":
+      return 95000000;
+    case "buyer":
+      return 85000000;
+    case "landlord":
+      return 4800000;
+    case "tenant":
+      return 3600000;
+    case "past_client":
+      return 65000000;
+    case "investor":
+      return 65000000;
+    default:
+      return 50000000;
+  }
+}
+
+function stageConversion(stage: string) {
+  switch (stage) {
+    case "new":
+    case "attempting_contact":
+      return 0.08;
+    case "nurturing":
+      return 0.18;
+    case "appointment_set":
+      return 0.34;
+    case "active_client":
+    case "met_with_client":
+    case "consultation":
+    case "valuation":
+      return 0.5;
+    case "sending_listings":
+    case "searching":
+    case "preparing":
+      return 0.6;
+    case "listed":
+    case "showings":
+    case "out_looking":
+      return 0.72;
+    case "transaction":
+    case "under_contract":
+    case "applications":
+    case "offer":
+    case "lease_process":
+      return 0.9;
+    case "past_client":
+      return 0.04;
+    default:
+      return 0.2;
+  }
+}
+
+function actionLift(actionType: RecommendedActionType) {
+  switch (actionType) {
+    case "call":
+      return 0.035;
+    case "deal":
+    case "move_stage":
+      return 0.045;
+    case "task":
+      return 0.025;
+    case "approve":
+    case "text":
+      return 0.018;
+    case "email":
+      return 0.014;
+    case "check_in":
+      return 0.008;
+    default:
+      return 0.015;
+  }
+}
+
+function estimateActionValue(action: TodayRecommendation) {
+  const rawValueCents =
+    action.deal?.valueCents ||
+    action.contact?.estimatedDealValueCents ||
+    defaultDealValueCents(action.deal?.type ?? action.contact?.type ?? "unknown");
+  const stage = action.deal?.stage ?? action.contact?.stage ?? "unknown";
+  const conversion = stageConversion(stage);
+  const scoreMultiplier = 0.75 + action.score / 200;
+  const confidenceMultiplier = Math.max(0.5, action.confidence / 100);
+  const urgencyMultiplier = action.priority === "High" ? 1.25 : action.priority === "Medium" ? 1 : 0.75;
+  const value = Math.round(rawValueCents * COMMISSION_RATE * actionLift(action.actionType) * (0.75 + conversion) * scoreMultiplier * confidenceMultiplier * urgencyMultiplier);
+  const estimatedValueCents = Math.max(action.priority === "High" ? 25000 : 10000, value);
+  const hasAssignedValue = Boolean(action.deal?.valueCents || action.contact?.estimatedDealValueCents);
+  return {
+    estimatedValueCents,
+    estimatedValueReason: hasAssignedValue
+      ? "AI estimate from assigned deal value, stage, urgency, and conversion lift."
+      : "AI estimate from contact type, stage, urgency, and conversion lift. Add a deal value to sharpen it.",
   };
 }
 
@@ -149,7 +253,7 @@ export async function getTodayRecommendations(db: DbClient, workspaceId: string)
 
   for (const action of storedActions) {
     if (action.status !== "open" && !(action.status === "snoozed" && action.snoozedUntil && action.snoozedUntil <= now)) continue;
-    recommendations.set(action.externalKey, {
+    const recommendation: TodayRecommendation = {
       id: action.externalKey,
       title: action.title,
       reason: action.reason,
@@ -158,16 +262,21 @@ export async function getTodayRecommendations(db: DbClient, workspaceId: string)
       priority: action.priority as Priority,
       score: action.score,
       confidence: action.confidence,
+      estimatedValueCents: 0,
+      estimatedValueReason: "",
       dueAt: action.dueAt,
       actionType: action.actionType as RecommendedActionType,
       contact: action.contact ? safeContact(action.contact) : undefined,
-      deal: action.deal ? { id: action.deal.id, name: action.deal.name, stage: action.deal.stage, type: action.deal.type } : undefined,
+      deal: action.deal ? { id: action.deal.id, name: action.deal.name, stage: action.deal.stage, type: action.deal.type, valueCents: action.deal.valueCents } : undefined,
       taskId: action.taskId ?? undefined,
-    });
+    };
+    recommendations.set(action.externalKey, { ...recommendation, ...estimateActionValue(recommendation) });
   }
 
   function setGenerated(key: string, action: TodayRecommendation) {
-    if (!suppressedKeys.has(key)) recommendations.set(key, action);
+    if (suppressedKeys.has(key)) return;
+    const estimate = estimateActionValue(action);
+    recommendations.set(key, { ...action, ...estimate });
   }
 
   for (const contact of contacts) {
