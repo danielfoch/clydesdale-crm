@@ -73,6 +73,7 @@ model Workspace {
   webhookEndpoints     WebhookEndpoint[]
   webhookDeliveries    WebhookDelivery[]
   webhookEvents        WebhookEvent[]
+  aiProviderSettings   AiProviderSetting[]
   recommendedActions   RecommendedAction[]
   agentCommands        AgentCommand[]
   auditLogs            AuditLog[]
@@ -340,6 +341,21 @@ model CampaignEnrollment {
 
   @@unique([campaignId, contactId])
   @@map("campaign_enrollments")
+}
+
+model AiProviderSetting {
+  id          String    @id @default(cuid())
+  workspaceId String
+  provider    String    @default("openai")
+  apiKey      String?
+  model       String    @default("gpt-4o-mini")
+  baseUrl     String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, provider])
+  @@map("ai_provider_settings")
 }
 
 model Workflow {

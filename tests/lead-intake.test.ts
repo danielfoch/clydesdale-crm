@@ -2,9 +2,21 @@ import { describe, expect, it, vi } from "vitest";
 import { intakeLead } from "@/lib/intake";
 
 function fakeDb() {
-  const contact = { id: "contact_1", name: "Jane Doe", emails: [], phones: [], tags: [] };
+  const contact = { id: "contact_1", name: "Jane Doe", emails: [], phones: [], tags: [], type: "buyer" };
+  const campaign = {
+    id: "campaign_1",
+    contactType: "buyer",
+    steps: [{ id: "step_1", campaignId: "campaign_1", position: 1, delayDays: 0, channel: "sms", body: "Hi {{first_name}}" }],
+  };
+  const enrollment = { id: "enrollment_1", campaignId: "campaign_1", contactId: "contact_1", currentStep: 0, createdAt: new Date(0), campaign, contact };
   return {
     contact: { create: vi.fn().mockResolvedValue(contact) },
+    campaign: { findFirst: vi.fn().mockResolvedValue(campaign) },
+    campaignEnrollment: {
+      upsert: vi.fn().mockResolvedValue(enrollment),
+      findMany: vi.fn().mockResolvedValue([enrollment]),
+      update: vi.fn().mockResolvedValue({ ...enrollment, currentStep: 1, status: "completed" }),
+    },
     leadSource: { upsert: vi.fn().mockResolvedValue({ id: "source_1" }) },
     leadEvent: { create: vi.fn().mockResolvedValue({ id: "lead_event_1" }) },
     task: { create: vi.fn().mockResolvedValue({ id: "task_1" }) },
@@ -39,6 +51,7 @@ describe("lead intake", () => {
     expect(result.classification.urgencyScore).toBeGreaterThanOrEqual(75);
     expect(db.contact.create).toHaveBeenCalledOnce();
     expect(db.task.create).toHaveBeenCalledOnce();
-    expect(db.message.create).toHaveBeenCalledOnce();
+    expect(db.campaignEnrollment.upsert).toHaveBeenCalledOnce();
+    expect(db.message.create).toHaveBeenCalledTimes(2);
   });
 });

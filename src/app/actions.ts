@@ -8,6 +8,8 @@ import { getPrisma } from "@/lib/prisma";
 import { getDefaultWorkspaceId } from "@/lib/workspace";
 import { writeAudit } from "@/lib/audit";
 import { generateClientForLifeCheckin } from "@/lib/ai";
+import { generateCampaignRecipeWithAi } from "@/lib/campaign-ai";
+import { coreCampaignTypes, defaultCampaignRecipe, isCoreCampaignType, runDueCampaignSteps, upsertCampaignRecipe } from "@/lib/campaigns";
 import { executeContactAction } from "@/lib/contact-actions";
 import { loopTaskType } from "@/lib/loop-checklists";
 import { approveAndSendMessage, createMessageDraft, startTwilioVoiceCall } from "@/lib/messages";
@@ -112,8 +114,95 @@ export async function enrollCampaignAction(formData: FormData) {
     create: { campaignId, contactId },
     update: { status: "active" },
   });
+  await runDueCampaignSteps(workspaceId, db, enrollment.id);
   await writeAudit({ workspaceId, actorType: "user", action: "campaign.enrolled", targetType: "campaign_enrollment", targetId: enrollment.id }, db);
   revalidatePath(`/people/${contactId}`);
+}
+
+export async function updateCampaignStepAction(formData: FormData) {
+  const db = getPrisma();
+  const workspaceId = await getDefaultWorkspaceId();
+  const stepId = requiredString(formData, "stepId");
+  const step = await db.campaignStep.update({
+    where: { id: stepId },
+    data: {
+      delayDays: Number(formData.get("delayDays") ?? 0),
+      channel: requiredString(formData, "channel") as never,
+      subject: optionalString(formData, "subject"),
+      body: requiredString(formData, "body"),
+      stopOnReply: formData.get("stopOnReply") === "on",
+      requiresApproval: formData.get("requiresApproval") === "on",
+    },
+  });
+  await writeAudit({ workspaceId, actorType: "user", action: "campaign_step.updated", targetType: "campaign_step", targetId: step.id }, db);
+  revalidatePath("/campaigns");
+}
+
+export async function generateCampaignRecipeAction(formData: FormData) {
+  const db = getPrisma();
+  const workspaceId = await getDefaultWorkspaceId();
+  const contactType = requiredString(formData, "contactType");
+  if (!isCoreCampaignType(contactType)) throw new Error("Unsupported campaign type");
+  const prompt = optionalString(formData, "prompt");
+  const { recipe, provider, error } = await generateCampaignRecipeWithAi(workspaceId, contactType, prompt, db);
+  const campaign = await upsertCampaignRecipe(workspaceId, recipe, db);
+  await writeAudit(
+    {
+      workspaceId,
+      actorType: provider === "openai" ? "ai" : "system",
+      action: "campaign.ai_generated",
+      targetType: "campaign",
+      targetId: campaign.id,
+      metadata: { contactType, provider, error },
+    },
+    db,
+  );
+  revalidatePath("/campaigns");
+  revalidatePath("/settings");
+}
+
+export async function ensureCoreCampaignsAction() {
+  const db = getPrisma();
+  const workspaceId = await getDefaultWorkspaceId();
+  for (const contactType of coreCampaignTypes) {
+    const exists = await db.campaign.findFirst({ where: { workspaceId, contactType } });
+    if (!exists) await upsertCampaignRecipe(workspaceId, defaultCampaignRecipe(contactType), db);
+  }
+  revalidatePath("/campaigns");
+}
+
+export async function runCampaignsNowAction() {
+  const db = getPrisma();
+  const workspaceId = await getDefaultWorkspaceId();
+  const result = await runDueCampaignSteps(workspaceId, db);
+  await writeAudit({ workspaceId, actorType: "user", action: "campaigns.run_due_steps", targetType: "campaign", targetId: workspaceId, metadata: result }, db);
+  revalidatePath("/campaigns");
+  revalidatePath("/today");
+}
+
+export async function saveAiProviderSettingsAction(formData: FormData) {
+  const db = getPrisma();
+  const workspaceId = await getDefaultWorkspaceId();
+  const existing = await db.aiProviderSetting.findUnique({ where: { workspaceId_provider: { workspaceId, provider: "openai" } } });
+  const apiKey = optionalString(formData, "apiKey");
+  const setting = await db.aiProviderSetting.upsert({
+    where: { workspaceId_provider: { workspaceId, provider: "openai" } },
+    create: {
+      workspaceId,
+      provider: "openai",
+      apiKey,
+      model: optionalString(formData, "model") ?? "gpt-4o-mini",
+      baseUrl: optionalString(formData, "baseUrl"),
+    },
+    update: {
+      apiKey: apiKey ?? existing?.apiKey,
+      model: optionalString(formData, "model") ?? existing?.model ?? "gpt-4o-mini",
+      baseUrl: optionalString(formData, "baseUrl"),
+    },
+  });
+  await writeAudit({ workspaceId, actorType: "user", action: "ai_provider.saved", targetType: "ai_provider_setting", targetId: setting.id, metadata: { provider: "openai", hasApiKey: Boolean(setting.apiKey) } }, db);
+  revalidatePath("/settings");
+  revalidatePath("/campaigns");
 }
 
 export async function markPastClientAction(formData: FormData) {

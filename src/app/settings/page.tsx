@@ -1,4 +1,5 @@
-import { Badge, inputClass, PageHeader, Panel } from "@/components/ui";
+import { saveAiProviderSettingsAction } from "@/app/actions";
+import { Badge, Button, inputClass, PageHeader, Panel } from "@/components/ui";
 import { getPrisma } from "@/lib/prisma";
 import { getDefaultWorkspace } from "@/lib/workspace";
 
@@ -7,10 +8,11 @@ export const dynamic = "force-dynamic";
 export default async function SettingsPage() {
   const db = getPrisma();
   const workspace = await getDefaultWorkspace();
-  const [leadSources, webhooks, campaigns] = await Promise.all([
+  const [leadSources, webhooks, campaigns, aiSetting] = await Promise.all([
     db.leadSource.findMany({ where: { workspaceId: workspace.id }, orderBy: { name: "asc" } }),
     db.webhookEndpoint.findMany({ where: { workspaceId: workspace.id }, orderBy: { name: "asc" } }),
     db.campaign.findMany({ where: { workspaceId: workspace.id }, include: { steps: true } }),
+    db.aiProviderSetting.findUnique({ where: { workspaceId_provider: { workspaceId: workspace.id, provider: "openai" } } }),
   ]);
 
   return (
@@ -49,10 +51,19 @@ export default async function SettingsPage() {
           </div>
         </Panel>
         <Panel title="AI provider settings">
-          <div className="space-y-2 text-sm text-[#5f6a62]">
-            <p>Provider abstraction is wired. Without API keys, deterministic mocked AI keeps demos working.</p>
-            <Badge>Approval mode by default</Badge>
-          </div>
+          <form action={saveAiProviderSettingsAction} className="space-y-3 text-sm">
+            <p className="text-[#5f6a62]">Add an OpenAI API key to let AI generate campaign recipes. Without a key, deterministic mocked AI keeps demos working. OAuth into ChatGPT is intentionally skipped for V1.</p>
+            <input name="apiKey" className={inputClass} placeholder={aiSetting?.apiKey ? "API key saved - enter a new key to replace it" : "OpenAI API key"} type="password" />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <input name="model" className={inputClass} placeholder="Model" defaultValue={aiSetting?.model ?? "gpt-4o-mini"} />
+              <input name="baseUrl" className={inputClass} placeholder="Base URL" defaultValue={aiSetting?.baseUrl ?? "https://api.openai.com/v1"} />
+            </div>
+            <div className="flex items-center gap-2">
+              <Button>Save AI settings</Button>
+              <Badge>{aiSetting?.apiKey ? "API key saved" : "Mock AI mode"}</Badge>
+              <Badge>Draft approval mode</Badge>
+            </div>
+          </form>
         </Panel>
         <Panel title="Webhook endpoints">
           <div className="space-y-2 text-sm">

@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 import { classifyLead } from "./ai";
 import { writeAudit } from "./audit";
+import { enrollContactInMatchingCampaign } from "./campaigns";
 import { createMessageDraft } from "./messages";
 import { getPrisma, type DbClient } from "./prisma";
 import { getDefaultWorkspaceId } from "./workspace";
@@ -143,6 +144,7 @@ export async function intakeLead(
     { workspaceId, contactId: contact.id, payload: { leadEventId: leadEvent.id } },
     db,
   );
+  await enrollContactInMatchingCampaign(workspaceId, contact.id, classification.contactType, db);
 
   return { contact, leadEvent, task, draft, classification };
 }
