@@ -19,6 +19,7 @@ export const defaultMotivationQuotes = [
   { source: "Patricia Fripp", text: "You do not compete on price. You compete on relationships." },
   { source: "r/sales", text: "A confused mind always says no." },
   { source: "r/sales", text: "Every sale follows a process, either yours or the customer's." },
+  { source: "Boiler Room", text: "A sale is made on every call you make. Either you sell the client something, or they sell you a reason they can't." },
   { source: "r/sales", text: "Price, quality, and service. Pick any two." },
   { source: "Seth Godin", text: "Do not find customers for your products; find products for your customers." },
   { source: "Katherine Barchetti", text: "Make a customer, not a sale." },
