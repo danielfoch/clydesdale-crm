@@ -112,6 +112,6 @@ export async function getMotivationQuotes(workspaceId: string, db: DbClient) {
   return db.motivationQuote.findMany({
     where: { workspaceId, isActive: true },
     orderBy: [{ upvotes: "desc" }, { createdAt: "asc" }],
-    take: 80,
+    take: 200,
   });
 }
