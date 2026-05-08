@@ -52,6 +52,7 @@ export const defaultMotivationQuotes = [
   { source: "r/sales", text: "If you say you are going to do something, do it." },
   { source: "r/sales", text: "The more I prospect, the luckier I get." },
   { source: "r/sales", text: "The sale begins when the customer says no." },
+  { source: "Sales", text: "Every no gets you closer to a yes." },
   { source: "John Wooden", text: "Do not let what you cannot do interfere with what you can do." },
   { source: "Nelson Mandela", text: "I never lose. I either win or learn." },
   { source: "Thomas Edison", text: "The most certain way to succeed is to try just one more time." },
