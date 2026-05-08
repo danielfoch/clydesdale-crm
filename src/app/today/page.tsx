@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BriefcaseBusiness, ChevronDown, Mail, MessageSquareText, Phone, Timer, TrendingUp, UserRound } from "lucide-react";
+import { BriefcaseBusiness, ChevronDown, Mail, MessageSquareText, Phone, Timer, UserRound } from "lucide-react";
 import {
   approveDraftAction,
   assignContactAction,
@@ -19,7 +19,6 @@ import { contactTypeLabel, formatDue, stageLabel } from "@/lib/display";
 import { getMotivationQuotes } from "@/lib/motivation-quotes";
 import { getPrisma } from "@/lib/prisma";
 import { getTodayRecommendations, type TodayRecommendation } from "@/lib/recommended-actions";
-import { formatRevenue, getRevenueEstimate, type RevenueEstimate } from "@/lib/revenue-estimates";
 import { getDefaultWorkspaceId } from "@/lib/workspace";
 import { MotivationRotator } from "./motivation-rotator";
 
@@ -37,48 +36,6 @@ function PriorityBadge({ priority }: { priority: TodayRecommendation["priority"]
         ? "bg-[#e0f2fe] text-[#075985]"
         : "bg-[#ecfdf5] text-[#166534]";
   return <span className={`rounded px-2 py-1 text-xs font-semibold ${className}`}>{priority}</span>;
-}
-
-function RevenueEstimateStrip({ estimate }: { estimate: RevenueEstimate }) {
-  const conversion = Math.round(estimate.conversionRate * 100);
-  const hasValues = estimate.assignedDealValueCents > 0;
-
-  return (
-    <div className="mt-3 rounded-md border border-[#d9ded5] bg-white/80 p-3 shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-normal text-[#68736a]">
-            <TrendingUp size={13} /> Revenue estimate
-          </div>
-          <div className="mt-1 text-2xl font-semibold tracking-normal text-[#17231d]">
-            {hasValues ? formatRevenue(estimate.annualizedRevenueCents) : "$0"}
-          </div>
-          <p className="mt-1 text-xs text-[#68736a]">
-            Annualized from deal value, stage conversion, and actions taken.
-          </p>
-        </div>
-        <div className="grid grid-cols-3 gap-2 text-right text-xs">
-          <div className="rounded bg-[#f6f7f4] px-2 py-1.5">
-            <div className="font-semibold text-[#17231d]">{formatRevenue(estimate.assignedDealValueCents)}</div>
-            <div className="text-[#68736a]">assigned</div>
-          </div>
-          <div className="rounded bg-[#f6f7f4] px-2 py-1.5">
-            <div className="font-semibold text-[#17231d]">{conversion}%</div>
-            <div className="text-[#68736a]">weighted</div>
-          </div>
-          <div className="rounded bg-[#f6f7f4] px-2 py-1.5">
-            <div className="font-semibold text-[#17231d]">{estimate.actionsTaken30d}</div>
-            <div className="text-[#68736a]">actions</div>
-          </div>
-        </div>
-      </div>
-      <div className="mt-3 rounded bg-[#edf4ec] px-3 py-2 text-sm text-[#26352c]">
-        {hasValues
-          ? <>Complete <span className="font-semibold">{estimate.actionsToTarget}</span> more actions to push annualized pipeline toward <span className="font-semibold">{formatRevenue(estimate.targetAnnualizedRevenueCents)}</span>.</>
-          : "Add deal values on Pipeline or Deals to unlock revenue estimates."}
-      </div>
-    </div>
-  );
 }
 
 function ContactMenu({ item }: { item: TodayRecommendation & { contact: NonNullable<TodayRecommendation["contact"]> } }) {
@@ -314,10 +271,9 @@ function RecommendationRow({ item, index }: { item: TodayRecommendation; index: 
 export default async function TodayPage() {
   const db = getPrisma();
   const workspaceId = await getDefaultWorkspaceId();
-  const [recommendations, motivationQuotes, revenueEstimate] = await Promise.all([
+  const [recommendations, motivationQuotes] = await Promise.all([
     getTodayRecommendations(db, workspaceId),
     getMotivationQuotes(workspaceId, db),
-    getRevenueEstimate(db, workspaceId),
   ]);
 
   return (
@@ -326,7 +282,6 @@ export default async function TodayPage() {
         <header className="flex flex-col gap-1">
           <h1 className="text-2xl font-semibold tracking-normal text-[#17231d]">Today</h1>
           <p className="max-w-3xl text-sm text-[#5f6a62]">Your highest-value actions, ranked by AI.</p>
-          <RevenueEstimateStrip estimate={revenueEstimate} />
         </header>
         <MotivationRotator quotes={motivationQuotes.map((quote) => ({
           id: quote.id,

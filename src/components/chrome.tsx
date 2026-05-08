@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BriefcaseBusiness, CalendarCheck, ChessKnight, Settings, UsersRound, Megaphone, Phone, Trophy, UserRound } from "lucide-react";
+import { BarChart3, BriefcaseBusiness, CalendarCheck, ChessKnight, Settings, UsersRound, Megaphone, Phone, Trophy, UserRound } from "lucide-react";
 
 const navItems = [
   { href: "/today", label: "Today", icon: CalendarCheck },
@@ -7,6 +7,7 @@ const navItems = [
   { href: "/pipeline", label: "Pipeline", icon: UsersRound },
   { href: "/deals", label: "Deals", icon: BriefcaseBusiness },
   { href: "/campaigns", label: "Campaigns", icon: Megaphone },
+  { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/leaderboard", label: "Leaderboard", icon: Trophy },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
