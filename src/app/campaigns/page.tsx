@@ -15,26 +15,38 @@ import { getDefaultWorkspaceId } from "@/lib/workspace";
 export const dynamic = "force-dynamic";
 
 function titleForType(type: CoreCampaignType) {
-  return `${contactTypeLabel(type)} campaign`;
+  return `${contactTypeLabel(type)} Campaigns`;
 }
 
 function helpForType(type: CoreCampaignType) {
   return defaultCampaignRecipe(type).description;
 }
 
+function channelLabel(channel: string) {
+  if (channel === "sms") return "Text";
+  if (channel === "email") return "Email";
+  if (channel === "call") return "Call Reminder";
+  return "Task";
+}
+
+function defaultGoal(type: CoreCampaignType) {
+  const goals: Record<CoreCampaignType, string> = {
+    buyer: "Convert new buyer leads into appointments",
+    seller: "Nurture seller leads toward a valuation call",
+    tenant: "Move tenants toward showings",
+    landlord: "Help landlords consider leasing or management",
+  };
+  return goals[type];
+}
+
 export default async function CampaignsPage() {
   const db = getPrisma();
   const workspaceId = await getDefaultWorkspaceId();
-  const [campaigns, workflows, posts, drafts, aiSetting] = await Promise.all([
+  const [campaigns, posts, drafts, aiSetting] = await Promise.all([
     db.campaign.findMany({
       where: { workspaceId, contactType: { in: [...coreCampaignTypes] } },
       include: { steps: { orderBy: { position: "asc" } }, enrollments: true },
       orderBy: { contactType: "asc" },
-    }),
-    db.workflow.findMany({
-      where: { workspaceId },
-      include: { versions: { include: { steps: { orderBy: { position: "asc" } }, runs: true }, orderBy: { version: "desc" } } },
-      orderBy: { createdAt: "desc" },
     }),
     db.contentPost.findMany({ where: { workspaceId }, include: { source: true }, orderBy: { publishedAt: "desc" }, take: 8 }),
     db.newsletterDraft.findMany({ where: { workspaceId }, orderBy: { createdAt: "desc" }, take: 6 }),
@@ -44,143 +56,178 @@ export default async function CampaignsPage() {
 
   return (
     <>
-      <PageHeader title="Campaigns" subtitle="Who am I warming up at scale?" />
-
-      <div className="grid gap-4 xl:grid-cols-[340px_1fr]">
-        <div className="space-y-4">
-          <Panel title="AI campaign builder">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <PageHeader title="Campaigns" subtitle="Warm up buyers, sellers, tenants, and landlords." />
+        <details className="relative [&>summary::-webkit-details-marker]:hidden">
+          <summary className="cursor-pointer rounded bg-[#17231d] px-3 py-2 text-sm font-medium text-white hover:bg-[#26382f]">
+            Create with AI
+          </summary>
+          <div className="absolute right-0 z-30 mt-2 w-[min(94vw,460px)] rounded-md border border-[#d9ded5] bg-white p-4 shadow-xl">
             <form action={generateCampaignRecipeAction} className="space-y-3">
               <select name="contactType" className={inputClass}>
-                {coreCampaignTypes.map((type) => <option key={type} value={type}>{titleForType(type)}</option>)}
+                {coreCampaignTypes.map((type) => <option key={type} value={type}>{contactTypeLabel(type)}</option>)}
               </select>
-              <textarea name="prompt" className={inputClass} placeholder="Tell the AI what you want. Example: luxury condo buyers, keep it casual, push to phone appointment." rows={4} />
-              <Button>Build campaign with AI</Button>
+              <input name="goal" className={inputClass} placeholder="Goal" defaultValue="Convert leads into appointments" />
+              <select name="tone" className={inputClass} defaultValue="direct">
+                <option value="direct">Direct</option>
+                <option value="warm">Warm</option>
+                <option value="luxury">Luxury</option>
+                <option value="casual">Casual</option>
+                <option value="professional">Professional</option>
+              </select>
+              <div className="grid grid-cols-2 gap-3">
+                <input name="numberOfSteps" className={inputClass} type="number" min={1} max={8} defaultValue={5} />
+                <input name="totalDurationDays" className={inputClass} type="number" min={0} max={90} defaultValue={14} />
+              </div>
+              <div className="flex flex-wrap gap-3 text-xs text-[#5f6a62]">
+                {[
+                  ["sms", "Text"],
+                  ["email", "Email"],
+                  ["note", "Task"],
+                  ["call", "Call Reminder"],
+                ].map(([value, label]) => (
+                  <label key={value} className="inline-flex items-center gap-2">
+                    <input name="channels" type="checkbox" value={value} defaultChecked={value === "sms" || value === "email"} /> {label}
+                  </label>
+                ))}
+              </div>
+              <textarea name="prompt" className={inputClass} placeholder="Extra notes. Example: luxury condo buyers, keep it casual, push to phone appointment." rows={3} />
+              <Button>Generate Campaign</Button>
               <p className="text-xs leading-5 text-[#68736a]">
-                {aiSetting?.apiKey ? "Using your saved OpenAI API key." : "Mock AI mode. Add an OpenAI API key in Settings for live LLM generation."}
+                {aiSetting?.apiKey ? "Using your saved server-side LLM API key." : "Mock AI mode. Add an OpenAI API key in Settings for live generation."}
               </p>
             </form>
-          </Panel>
+          </div>
+        </details>
+      </div>
 
-          <Panel title="Campaign engine">
-            <form action={runCampaignsNowAction} className="space-y-3 text-sm text-[#5f6a62]">
-              <p>New buyer, seller, tenant, and landlord leads auto-enroll in the matching campaign. Due steps create message drafts for approval.</p>
-              <Button>Run due campaign steps</Button>
-            </form>
-          </Panel>
+      <div className="space-y-3">
+        {coreCampaignTypes.map((type) => {
+          const campaign = campaignByType.get(type);
+          const steps = campaign?.steps ?? [];
+          return (
+            <details key={type} className="rounded border border-[#e4e8df] bg-white shadow-sm [&>summary::-webkit-details-marker]:hidden">
+              <summary className="flex cursor-pointer items-center justify-between gap-3 p-4 hover:bg-[#f8faf6]">
+                <div>
+                  <h2 className="text-base font-semibold">{titleForType(type)}</h2>
+                  <p className="mt-1 text-sm text-[#5f6a62]">{campaign?.description ?? helpForType(type)}</p>
+                </div>
+                <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                  <Badge>{steps.length} steps</Badge>
+                  <Badge>{campaign?.enrollments.filter((item) => item.status === "active").length ?? 0} active</Badge>
+                  <Badge>{campaign?.isActive === false ? "Paused" : "Active"}</Badge>
+                </div>
+              </summary>
 
-          <Panel title="Core recipes">
-            <form action={ensureCoreCampaignsAction} className="space-y-3 text-sm text-[#5f6a62]">
-              <p>Create any missing buyer, seller, tenant, or landlord campaigns.</p>
-              <Button>Ensure core campaigns</Button>
-            </form>
-          </Panel>
+              <div className="space-y-3 border-t border-[#edf0ea] p-4">
+                {!campaign ? (
+                  <form action={generateCampaignRecipeAction} className="rounded border border-dashed border-[#d9ded5] p-3">
+                    <input type="hidden" name="contactType" value={type} />
+                    <input type="hidden" name="goal" value={defaultGoal(type)} />
+                    <p className="mb-3 text-sm text-[#5f6a62]">No campaign yet. Create one with AI or add a core recipe.</p>
+                    <Button>Create this campaign</Button>
+                  </form>
+                ) : null}
 
+                {campaign ? (
+                  <div className="rounded bg-[#f8faf6] p-3 text-sm text-[#5f6a62]">
+                    {campaign.name} · {steps.length} steps over {steps.at(-1)?.delayDays ?? 0} days
+                  </div>
+                ) : null}
+
+                {steps.map((step, index) => (
+                  <details key={step.id} className="rounded border border-[#e4e8df] bg-[#fbfcfa] [&>summary::-webkit-details-marker]:hidden">
+                    <summary className="flex cursor-pointer items-center justify-between gap-3 p-3 hover:bg-white">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge>{index + 1}</Badge>
+                          <Badge>Day {step.delayDays}</Badge>
+                          <Badge>{channelLabel(step.channel)}</Badge>
+                          {!step.isActive ? <Badge>Inactive</Badge> : null}
+                        </div>
+                        <p className="mt-2 line-clamp-1 text-sm font-medium text-[#26352c]">{step.title || step.subject || step.body}</p>
+                        <p className="mt-1 line-clamp-1 text-xs text-[#68736a]">{step.body}</p>
+                      </div>
+                      <span className="text-xs text-[#68736a]">Edit</span>
+                    </summary>
+
+                    <form action={updateCampaignStepAction} className="grid gap-3 border-t border-[#edf0ea] p-3">
+                      <input type="hidden" name="stepId" value={step.id} />
+                      <div className="grid gap-3 sm:grid-cols-[90px_140px_1fr]">
+                        <label className="text-xs text-[#5f6a62]">
+                          Day
+                          <input name="delayDays" className={inputClass} type="number" min={0} defaultValue={step.delayDays} />
+                        </label>
+                        <label className="text-xs text-[#5f6a62]">
+                          Channel
+                          <select name="channel" className={inputClass} defaultValue={step.channel}>
+                            <option value="sms">Text</option>
+                            <option value="email">Email</option>
+                            <option value="note">Task</option>
+                            <option value="call">Call Reminder</option>
+                          </select>
+                        </label>
+                        <label className="text-xs text-[#5f6a62]">
+                          Title
+                          <input name="title" className={inputClass} defaultValue={step.title ?? ""} placeholder="First response" />
+                        </label>
+                      </div>
+                      <label className="text-xs text-[#5f6a62]">
+                        Email subject
+                        <input name="subject" className={inputClass} defaultValue={step.subject ?? ""} placeholder="Only used for email" />
+                      </label>
+                      <label className="text-xs text-[#5f6a62]">
+                        Message body
+                        <textarea name="body" className={inputClass} defaultValue={step.body} rows={5} required />
+                      </label>
+                      <div className="rounded border border-[#e4e8df] bg-white p-2 text-xs text-[#68736a]">
+                        Variables: {"{{first_name}}"}, {"{{agent_name}}"}, {"{{area}}"}, {"{{property_type}}"}, {"{{budget}}"}, {"{{timeline}}"}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <label className="inline-flex items-center gap-2 text-xs text-[#5f6a62]">
+                          <input name="isActive" type="checkbox" defaultChecked={step.isActive} /> Active
+                        </label>
+                        <label className="inline-flex items-center gap-2 text-xs text-[#5f6a62]">
+                          <input name="requiresApproval" type="checkbox" defaultChecked={step.requiresApproval} /> Requires approval
+                        </label>
+                        <label className="inline-flex items-center gap-2 text-xs text-[#5f6a62]">
+                          <input name="stopOnReply" type="checkbox" defaultChecked={step.stopOnReply} /> Stop on reply
+                        </label>
+                        <Button>Save</Button>
+                      </div>
+                    </form>
+                  </details>
+                ))}
+              </div>
+            </details>
+          );
+        })}
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <Panel title="Automation">
+          <form action={runCampaignsNowAction} className="space-y-3 text-sm text-[#5f6a62]">
+            <p>New Pipeline leads auto-enroll by type. Due Text and Email steps create drafts; Task and Call Reminder steps create tasks. Converted clients exit lead nurture.</p>
+            <Button>Run due campaign steps</Button>
+          </form>
+        </Panel>
+        <Panel title="Core recipes">
+          <form action={ensureCoreCampaignsAction} className="space-y-3 text-sm text-[#5f6a62]">
+            <p>Create any missing Buyer, Seller, Tenant, or Landlord campaign.</p>
+            <Button>Ensure core campaigns</Button>
+          </form>
+        </Panel>
+      </div>
+
+      <details className="mt-4 rounded border border-[#e4e8df] bg-white p-4 [&>summary::-webkit-details-marker]:hidden">
+        <summary className="cursor-pointer text-sm font-medium">Advanced content tools</summary>
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
           <Panel title="RSS/Substack import">
             <form action={importRssAction} className="space-y-3">
               <input name="url" className={inputClass} placeholder="https://example.substack.com/feed" required />
               <Button>Import posts</Button>
             </form>
           </Panel>
-        </div>
-
-        <div className="space-y-4">
-          <Panel title="Campaign recipes">
-            <div className="space-y-3">
-              {coreCampaignTypes.map((type) => {
-                const campaign = campaignByType.get(type);
-                return (
-                  <details key={type} className="rounded border border-[#e4e8df] bg-white [&>summary::-webkit-details-marker]:hidden">
-                    <summary className="flex cursor-pointer items-center justify-between gap-3 p-4 hover:bg-[#f8faf6]">
-                      <div>
-                        <h3 className="font-medium">{campaign?.name ?? titleForType(type)}</h3>
-                        <p className="mt-1 text-sm text-[#5f6a62]">{campaign?.description ?? helpForType(type)}</p>
-                      </div>
-                      <div className="flex shrink-0 flex-wrap justify-end gap-2">
-                        <Badge>{campaign?.steps.length ?? 0} steps</Badge>
-                        <Badge>{campaign?.enrollments.length ?? 0} enrolled</Badge>
-                        <Badge>{campaign?.isActive === false ? "paused" : "active"}</Badge>
-                      </div>
-                    </summary>
-
-                    <div className="space-y-3 border-t border-[#edf0ea] p-4">
-                      {!campaign ? (
-                        <form action={generateCampaignRecipeAction} className="rounded border border-dashed border-[#d9ded5] p-3">
-                          <input type="hidden" name="contactType" value={type} />
-                          <p className="mb-3 text-sm text-[#5f6a62]">No {contactTypeLabel(type).toLowerCase()} campaign yet.</p>
-                          <Button>Create this campaign</Button>
-                        </form>
-                      ) : null}
-
-                      {campaign?.steps.map((step, index) => (
-                        <details key={step.id} className="rounded border border-[#e4e8df] bg-[#fbfcfa] [&>summary::-webkit-details-marker]:hidden">
-                          <summary className="flex cursor-pointer items-center justify-between gap-3 p-3 hover:bg-white">
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2">
-                                <Badge>#{index + 1}</Badge>
-                                <Badge>Day {step.delayDays}</Badge>
-                                <Badge>{step.channel}</Badge>
-                              </div>
-                              <p className="mt-2 line-clamp-1 text-sm font-medium text-[#26352c]">{step.subject || step.body}</p>
-                            </div>
-                            <span className="text-xs text-[#68736a]">Edit</span>
-                          </summary>
-
-                          <form action={updateCampaignStepAction} className="grid gap-3 border-t border-[#edf0ea] p-3">
-                            <input type="hidden" name="stepId" value={step.id} />
-                            <div className="grid gap-3 sm:grid-cols-[110px_130px_1fr]">
-                              <label className="text-xs text-[#5f6a62]">
-                                Days
-                                <input name="delayDays" className={inputClass} type="number" min={0} defaultValue={step.delayDays} />
-                              </label>
-                              <label className="text-xs text-[#5f6a62]">
-                                Channel
-                                <select name="channel" className={inputClass} defaultValue={step.channel}>
-                                  <option value="sms">SMS</option>
-                                  <option value="email">Email</option>
-                                </select>
-                              </label>
-                              <label className="text-xs text-[#5f6a62]">
-                                Subject
-                                <input name="subject" className={inputClass} defaultValue={step.subject ?? ""} placeholder="Email subject" />
-                              </label>
-                            </div>
-                            <label className="text-xs text-[#5f6a62]">
-                              Message
-                              <textarea name="body" className={inputClass} defaultValue={step.body} rows={5} required />
-                            </label>
-                            <div className="flex flex-wrap items-center gap-3">
-                              <label className="inline-flex items-center gap-2 text-xs text-[#5f6a62]">
-                                <input name="requiresApproval" type="checkbox" defaultChecked={step.requiresApproval} /> Requires approval
-                              </label>
-                              <label className="inline-flex items-center gap-2 text-xs text-[#5f6a62]">
-                                <input name="stopOnReply" type="checkbox" defaultChecked={step.stopOnReply} /> Stop on reply
-                              </label>
-                              <Button>Save step</Button>
-                            </div>
-                          </form>
-                        </details>
-                      ))}
-                    </div>
-                  </details>
-                );
-              })}
-            </div>
-          </Panel>
-
-          <Panel title="Lead automation">
-            <div className="space-y-3">
-              {workflows.map((workflow) => {
-                const version = workflow.versions[0];
-                return (
-                  <div key={workflow.id} className="rounded border border-[#e4e8df] p-3">
-                    <div className="flex items-center justify-between gap-3"><h3 className="font-medium">{workflow.name}</h3><Badge>{workflow.isActive ? "active" : "paused"}</Badge></div>
-                    <p className="mt-1 text-sm text-[#5f6a62]">When {version?.trigger ?? "draft"} then {version?.steps.map((step) => step.action).join(", ")}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </Panel>
-
           <Panel title="Content repurposing">
             <div className="space-y-3">
               {posts.map((post) => (
@@ -198,14 +245,13 @@ export default async function CampaignsPage() {
               ))}
             </div>
           </Panel>
-
           <Panel title="Newsletter drafts">
             <div className="space-y-3">
               {drafts.map((draft) => <pre key={draft.id} className="max-h-44 overflow-auto whitespace-pre-wrap rounded border border-[#e4e8df] p-3 text-xs">{draft.body}</pre>)}
             </div>
           </Panel>
         </div>
-      </div>
+      </details>
     </>
   );
 }

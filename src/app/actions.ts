@@ -13,6 +13,7 @@ import { coreCampaignTypes, defaultCampaignRecipe, isCoreCampaignType, runDueCam
 import { executeContactAction } from "@/lib/contact-actions";
 import { loopTaskType } from "@/lib/loop-checklists";
 import { approveAndSendMessage, createMessageDraft, startTwilioVoiceCall } from "@/lib/messages";
+import { encryptSecret } from "@/lib/secrets";
 
 function requiredString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -128,8 +129,10 @@ export async function updateCampaignStepAction(formData: FormData) {
     data: {
       delayDays: Number(formData.get("delayDays") ?? 0),
       channel: requiredString(formData, "channel") as never,
+      title: optionalString(formData, "title"),
       subject: optionalString(formData, "subject"),
       body: requiredString(formData, "body"),
+      isActive: formData.get("isActive") === "on",
       stopOnReply: formData.get("stopOnReply") === "on",
       requiresApproval: formData.get("requiresApproval") === "on",
     },
@@ -143,7 +146,14 @@ export async function generateCampaignRecipeAction(formData: FormData) {
   const workspaceId = await getDefaultWorkspaceId();
   const contactType = requiredString(formData, "contactType");
   if (!isCoreCampaignType(contactType)) throw new Error("Unsupported campaign type");
-  const prompt = optionalString(formData, "prompt");
+  const prompt = [
+    optionalString(formData, "goal") ? `Goal: ${optionalString(formData, "goal")}` : undefined,
+    optionalString(formData, "tone") ? `Tone: ${optionalString(formData, "tone")}` : undefined,
+    optionalString(formData, "numberOfSteps") ? `Number of steps: ${optionalString(formData, "numberOfSteps")}` : undefined,
+    optionalString(formData, "totalDurationDays") ? `Total duration days: ${optionalString(formData, "totalDurationDays")}` : undefined,
+    formData.getAll("channels").length ? `Channels: ${formData.getAll("channels").join(", ")}` : undefined,
+    optionalString(formData, "prompt"),
+  ].filter(Boolean).join("\n");
   const { recipe, provider, error } = await generateCampaignRecipeWithAi(workspaceId, contactType, prompt, db);
   const campaign = await upsertCampaignRecipe(workspaceId, recipe, db);
   await writeAudit(
@@ -190,17 +200,29 @@ export async function saveAiProviderSettingsAction(formData: FormData) {
     create: {
       workspaceId,
       provider: "openai",
-      apiKey,
+      apiKey: apiKey ? encryptSecret(apiKey) : undefined,
       model: optionalString(formData, "model") ?? "gpt-4o-mini",
       baseUrl: optionalString(formData, "baseUrl"),
     },
     update: {
-      apiKey: apiKey ?? existing?.apiKey,
+      apiKey: apiKey ? encryptSecret(apiKey) : existing?.apiKey,
       model: optionalString(formData, "model") ?? existing?.model ?? "gpt-4o-mini",
       baseUrl: optionalString(formData, "baseUrl"),
     },
   });
   await writeAudit({ workspaceId, actorType: "user", action: "ai_provider.saved", targetType: "ai_provider_setting", targetId: setting.id, metadata: { provider: "openai", hasApiKey: Boolean(setting.apiKey) } }, db);
+  revalidatePath("/settings");
+  revalidatePath("/campaigns");
+}
+
+export async function removeAiProviderKeyAction() {
+  const db = getPrisma();
+  const workspaceId = await getDefaultWorkspaceId();
+  const setting = await db.aiProviderSetting.update({
+    where: { workspaceId_provider: { workspaceId, provider: "openai" } },
+    data: { apiKey: null },
+  });
+  await writeAudit({ workspaceId, actorType: "user", action: "ai_provider.key_removed", targetType: "ai_provider_setting", targetId: setting.id, metadata: { provider: "openai" } }, db);
   revalidatePath("/settings");
   revalidatePath("/campaigns");
 }
@@ -645,6 +667,12 @@ export async function updateContactPipelineStageAction(formData: FormData) {
         participants: { create: { contactId: contact.id, role: "client" } },
         stageHistory: { create: { toStage: "met_with_client" } },
       },
+    });
+  }
+  if (stage === "active_client") {
+    await db.campaignEnrollment.updateMany({
+      where: { contactId, status: "active", campaign: { workspaceId, contactType: { in: [...coreCampaignTypes] } } },
+      data: { status: "exited", exitedAt: new Date() },
     });
   }
   await writeAudit({ workspaceId, actorType: "user", action: "contact.pipeline_stage_changed", targetType: "contact", targetId: contactId, metadata: { stage } }, db);

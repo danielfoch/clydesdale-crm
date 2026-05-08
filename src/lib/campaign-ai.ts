@@ -1,5 +1,6 @@
 import { defaultCampaignRecipe, type CampaignRecipe, type CoreCampaignType } from "./campaigns";
 import type { DbClient } from "./prisma";
+import { decryptSecret } from "./secrets";
 
 type AiSetting = {
   provider: string;
@@ -25,9 +26,11 @@ function parseRecipe(text: string, fallback: CampaignRecipe): CampaignRecipe {
       description: parsed.description,
       steps: parsed.steps.slice(0, 8).map((step, index) => ({
         delayDays: Number.isFinite(Number(step.delayDays)) ? Number(step.delayDays) : index,
-        channel: step.channel === "email" ? "email" : "sms",
+        channel: ["email", "note", "call"].includes(step.channel) ? step.channel : "sms",
+        title: step.title || `Step ${index + 1}`,
         subject: step.channel === "email" ? step.subject || "Quick follow-up" : undefined,
         body: String(step.body || fallback.steps[Math.min(index, fallback.steps.length - 1)]?.body || "Quick follow-up."),
+        isActive: step.isActive ?? true,
         stopOnReply: step.stopOnReply ?? true,
         requiresApproval: step.requiresApproval ?? true,
       })),
@@ -49,7 +52,7 @@ export async function generateCampaignRecipeWithAi(
 ) {
   const fallback = defaultCampaignRecipe(contactType, prompt);
   const setting = await getAiSetting(workspaceId, db);
-  const apiKey = setting?.apiKey || process.env.OPENAI_API_KEY;
+  const apiKey = decryptSecret(setting?.apiKey) || process.env.OPENAI_API_KEY;
   if (!apiKey) return { recipe: fallback, provider: "mock" };
 
   const model = setting?.model || "gpt-4o-mini";
@@ -63,7 +66,7 @@ export async function generateCampaignRecipeWithAi(
     body: JSON.stringify({
       model,
       instructions: "You create simple real estate CRM campaigns. Return only valid JSON. No markdown.",
-      input: `Create a ${contactType} lead nurture campaign for Clydesdale CRM. It must be simple, numbered by days, draft-only, and designed to move the lead toward an appointment. User notes: ${prompt || "none"}`,
+      input: `Create a ${contactType} lead nurture campaign for Clydesdale CRM. It must be simple, numbered by days, draft-only, and designed to move the lead toward an appointment. Valid channels: sms, email, note for a task, call for a call reminder. User notes: ${prompt || "none"}`,
       text: {
         format: {
           type: "json_schema",
@@ -84,12 +87,14 @@ export async function generateCampaignRecipeWithAi(
                 items: {
                   type: "object",
                   additionalProperties: false,
-                  required: ["delayDays", "channel", "subject", "body", "stopOnReply", "requiresApproval"],
+                  required: ["delayDays", "channel", "title", "subject", "body", "isActive", "stopOnReply", "requiresApproval"],
                   properties: {
                     delayDays: { type: "integer" },
-                    channel: { type: "string", enum: ["sms", "email"] },
+                    channel: { type: "string", enum: ["sms", "email", "note", "call"] },
+                    title: { type: "string" },
                     subject: { type: "string" },
                     body: { type: "string" },
+                    isActive: { type: "boolean" },
                     stopOnReply: { type: "boolean" },
                     requiresApproval: { type: "boolean" },
                   },

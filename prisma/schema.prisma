@@ -318,9 +318,11 @@ model CampaignStep {
   position         Int
   delayDays        Int            @default(0)
   channel          MessageChannel
+  title            String?
   subject          String?
   body             String
   template         String?
+  isActive         Boolean        @default(true)
   stopOnReply      Boolean        @default(true)
   requiresApproval Boolean        @default(true)
   campaign         Campaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
@@ -336,6 +338,10 @@ model CampaignEnrollment {
   status      String   @default("active")
   currentStep Int      @default(0)
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  pausedAt    DateTime?
+  completedAt DateTime?
+  exitedAt    DateTime?
   campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   contact     Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
 

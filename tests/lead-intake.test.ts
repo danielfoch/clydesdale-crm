@@ -10,7 +10,8 @@ function fakeDb() {
   };
   const enrollment = { id: "enrollment_1", campaignId: "campaign_1", contactId: "contact_1", currentStep: 0, createdAt: new Date(0), campaign, contact };
   return {
-    contact: { create: vi.fn().mockResolvedValue(contact) },
+    contact: { create: vi.fn().mockResolvedValue(contact), findUnique: vi.fn().mockResolvedValue({ ...contact, stage: "new", consents: [], primaryDeals: [] }) },
+    contactConsent: { findUnique: vi.fn().mockResolvedValue(null) },
     campaign: { findFirst: vi.fn().mockResolvedValue(campaign) },
     campaignEnrollment: {
       upsert: vi.fn().mockResolvedValue(enrollment),

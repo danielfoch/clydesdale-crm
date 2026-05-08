@@ -1,6 +1,7 @@
-import { saveAiProviderSettingsAction } from "@/app/actions";
+import { removeAiProviderKeyAction, saveAiProviderSettingsAction } from "@/app/actions";
 import { Badge, Button, inputClass, PageHeader, Panel } from "@/components/ui";
 import { getPrisma } from "@/lib/prisma";
+import { maskSecret } from "@/lib/secrets";
 import { getDefaultWorkspace } from "@/lib/workspace";
 
 export const dynamic = "force-dynamic";
@@ -53,6 +54,9 @@ export default async function SettingsPage() {
         <Panel title="AI provider settings">
           <form action={saveAiProviderSettingsAction} className="space-y-3 text-sm">
             <p className="text-[#5f6a62]">Add an OpenAI API key to let AI generate campaign recipes. Without a key, deterministic mocked AI keeps demos working. OAuth into ChatGPT is intentionally skipped for V1.</p>
+            <div className="rounded border border-[#e4e8df] bg-[#fbfcfa] p-3 text-xs text-[#5f6a62]">
+              Saved key: <span className="font-medium text-[#17231d]">{maskSecret(aiSetting?.apiKey)}</span>
+            </div>
             <input name="apiKey" className={inputClass} placeholder={aiSetting?.apiKey ? "API key saved - enter a new key to replace it" : "OpenAI API key"} type="password" />
             <div className="grid gap-3 sm:grid-cols-2">
               <input name="model" className={inputClass} placeholder="Model" defaultValue={aiSetting?.model ?? "gpt-4o-mini"} />
@@ -64,6 +68,11 @@ export default async function SettingsPage() {
               <Badge>Draft approval mode</Badge>
             </div>
           </form>
+          {aiSetting?.apiKey ? (
+            <form action={removeAiProviderKeyAction} className="mt-3">
+              <button className="rounded border border-[#cfd6ca] px-3 py-2 text-sm hover:bg-[#f5f7f2]">Remove key</button>
+            </form>
+          ) : null}
         </Panel>
         <Panel title="Webhook endpoints">
           <div className="space-y-2 text-sm">
